@@ -12,8 +12,6 @@ export default function ProjectCard({
   description,
   ownerEmail,
 }: ProjectCardProps) {
-  console.log("esta llegando al project card");
-
   return (
     <span className="cursor-pointer">
       <Card>
