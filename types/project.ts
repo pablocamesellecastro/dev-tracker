@@ -5,5 +5,9 @@ export interface Project {
   name: string;
   description: string;
   tasks?: Task[];
-  ownerId?: string;
+  owner_id?: string;
 }
+
+export type MemberRow = {
+  Projects: Project;
+};
