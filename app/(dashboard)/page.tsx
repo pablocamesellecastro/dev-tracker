@@ -40,7 +40,7 @@ export default async function Home() {
     .eq("user_id", user?.id)
     .returns<MemberRow[]>();
 
-  const memberProjects = memberRows?.map((row) => row.Projects) ?? [];
+  const memberProjects = memberRows?.map((row) => row.projects) ?? [];
 
   const allProjectsMap = new Map();
   [...(ownedProjects ?? []), ...memberProjects].forEach((p) => {

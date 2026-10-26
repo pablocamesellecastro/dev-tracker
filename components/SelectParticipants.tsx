@@ -19,7 +19,6 @@ export default function SelectParticipants({
   setSelected,
 }: SelectParticipantsProps) {
   ///_____________________________________________________
-
   const [data, setData] = useState<User[]>([]);
 
   useEffect(() => {

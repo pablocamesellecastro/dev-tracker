@@ -12,5 +12,7 @@ export async function getCurrentUser() {
     return { user: null, error };
   }
 
-  return { user, error: null };
+  const currentUserId = user?.id;
+
+  return { user, error: null, currentUserId };
 }

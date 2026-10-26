@@ -144,7 +144,11 @@ export default function FriendsModal() {
         Amigos
       </Button>
 
-      <Modal.Backdrop isOpen={state.isOpen} onOpenChange={state.setOpen}>
+      <Modal.Backdrop
+        className="backdrop-blur-sm"
+        isOpen={state.isOpen}
+        onOpenChange={state.setOpen}
+      >
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />

@@ -66,66 +66,72 @@ export default function InviteModal() {
   };
 
   return (
-    <Modal>
-      <Button
-        variant="ghost"
-        size="sm"
-        onPress={state.open}
-        style={{
-          boxShadow:
-            "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
-        }}
-      >
-        <PersonPlus className="size-4" />
-        Invitar
-      </Button>
+    <div className="">
+      <Modal>
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={state.open}
+          style={{
+            boxShadow:
+              "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
+          }}
+        >
+          <PersonPlus className="size-4" />
+          Invitar
+        </Button>
 
-      <Modal.Backdrop isOpen={state.isOpen} onOpenChange={state.setOpen}>
-        <Modal.Container>
-          <Modal.Dialog className="sm:max-w-md">
-            <Modal.CloseTrigger />
-            <Modal.Header>
-              <Modal.Heading>Invitar a un usuario</Modal.Heading>
-            </Modal.Header>
+        <Modal.Backdrop
+          isOpen={state.isOpen}
+          onOpenChange={state.setOpen}
+          className="backdrop-blur-sm"
+        >
+          <Modal.Container>
+            <Modal.Dialog className="sm:max-w-md">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading>Invitar a un usuario</Modal.Heading>
+              </Modal.Header>
 
-            <Modal.Body>
-              <form
-                id="invite-form"
-                className="flex flex-col gap-4"
-                onSubmit={handleSearchUser}
-              >
-                <TextField
-                  name="email"
-                  type="email"
-                  isRequired
-                  isInvalid={!!errorMessage}
+              <Modal.Body>
+                <form
+                  id="invite-form"
+                  className="flex flex-col gap-4"
+                  onSubmit={handleSearchUser}
                 >
-                  <Label>Email del usuario</Label>
-                  <Input
-                    placeholder="ejemplo@correo.com"
-                    value={searchEmail}
-                    onChange={(e) => setSearchEmail(e.target.value)}
-                  />
-                </TextField>
+                  <TextField
+                    name="email"
+                    type="email"
+                    isRequired
+                    isInvalid={!!errorMessage}
+                  >
+                    <Label>Email del usuario</Label>
+                    <Input
+                      placeholder="ejemplo@correo.com"
+                      value={searchEmail}
+                      onChange={(e) => setSearchEmail(e.target.value)}
+                    />
+                  </TextField>
 
-                {errorMessage && (
-                  <p className="text-sm text-danger">{errorMessage}</p>
-                )}
-              </form>
-            </Modal.Body>
+                  {errorMessage && (
+                    <p className="text-sm text-danger">{errorMessage}</p>
+                  )}
+                </form>
+              </Modal.Body>
 
-            <Modal.Footer>
-              <Button slot="close" variant="secondary">
-                Cancelar
-              </Button>
-              <Button type="submit" form="invite-form" isPending={isLoading}>
-                {isLoading && <Spinner size="sm" />}
-                Enviar invitación
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+              <Modal.Footer>
+                <Button slot="close" variant="secondary">
+                  Cancelar
+                </Button>
+                <Button type="submit" form="invite-form" isPending={isLoading}>
+                  {isLoading && <Spinner size="sm" />}
+                  Enviar invitación
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+    </div>
   );
 }

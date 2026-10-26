@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import SelectParticipants from "../SelectParticipants";
 import { Selection } from "@heroui/react";
-import { ProjectMember } from "@/types/projectMember";
 
 export default function CreateProjectModal() {
   const router = useRouter();
@@ -78,25 +77,7 @@ export default function CreateProjectModal() {
             </Modal.Header>
 
             <Modal.Body className="flex flex-col">
-              <form
-                id="create-project-form"
-                onSubmit={handleCreateProject}
-                className="flex flex-col gap-4"
-              >
-                <Input
-                  aria-label="Nombre del proyecto"
-                  placeholder="p.ej. Dev Tracker"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  required
-                />
-                <TextArea
-                  aria-label="Descripción"
-                  placeholder="Describe de qué trata este proyecto..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </form>
+              SelectPa
 
               <Modal.Heading className="pt-4 pb-4">Participantes</Modal.Heading>
 

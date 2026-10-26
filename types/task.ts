@@ -1,5 +1,5 @@
 export interface Task {
   readonly id: string;
-  title: string;
+  name: string;
   completed: boolean;
 }

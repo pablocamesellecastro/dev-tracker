@@ -1,5 +1,6 @@
-export interface ProjectMember {
-  id: string;
+export interface ProjectMemberRow {
   user_id: string;
-  project_id: string;
+  profiles: {
+    email: string;
+  };
 }

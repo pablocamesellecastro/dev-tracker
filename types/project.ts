@@ -9,5 +9,5 @@ export interface Project {
 }
 
 export type MemberRow = {
-  Projects: Project;
+  projects: Project;
 };
