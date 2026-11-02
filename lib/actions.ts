@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { id } from "zod/locales";
 import { ProjectMemberRow } from "@/types/projectMember";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 ///____________________________________________________________________________________________________________
 export const createProject = async (
@@ -269,4 +270,10 @@ export const changeTaskPriority = async (
     return;
   }
   revalidatePath(`/projects/${projectId}`);
+};
+
+///____________________________________________________________________________________________________________
+export const setLocale = async (locale: "es" | "en") => {
+  const store = await cookies();
+  store.set("locale", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
 };

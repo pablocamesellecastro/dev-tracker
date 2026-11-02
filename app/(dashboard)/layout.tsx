@@ -1,4 +1,3 @@
-// app/(dashboard)/layout.tsx
 import { Badge, Button, Popover } from "@heroui/react";
 import { Bell, LayoutColumns } from "@gravity-ui/icons";
 import Link from "next/link";
@@ -7,12 +6,16 @@ import InvitationCard from "@/components/invitation/invitationCard";
 import InviteModal from "@/components/Modals/InviteModal";
 import LogoutButton from "@/components/LogoutButton";
 import FriendsModal from "@/components/Modals/FriendsModal";
+import LanguageSelector from "@/components/LanguageSelector";
+
+import { getTranslations } from "next-intl/server";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = await getTranslations("DashboardLayout");
   const supabase = await createClient();
 
   const {
@@ -39,7 +42,7 @@ export default async function DashboardLayout({
             <div className="bg-accent/10 text-accent rounded-lg p-1.5">
               <LayoutColumns className="size-4" />
             </div>
-            <span className="font-semibold">Tablero</span>
+            <span className="font-semibold">{t("workspace")}</span>
           </div>
 
           {user ? (
@@ -53,14 +56,16 @@ export default async function DashboardLayout({
                       variant="ghost"
                       size="sm"
                       isIconOnly
-                      aria-label="Notificaciones"
+                      aria-label={t("notificationsAria")}
                     >
                       <Bell className="size-4" />
                     </Button>
                   </Popover.Trigger>
                   <Popover.Content className="w-80">
                     <Popover.Dialog>
-                      <Popover.Heading>Solicitudes de amistad</Popover.Heading>
+                      <Popover.Heading>
+                        {t("friendRequestsTitle")}
+                      </Popover.Heading>
                       <div className="flex flex-col gap-3 mt-3 max-h-80 overflow-y-auto">
                         {hasInvitations ? (
                           invitations!.map((invitation) => {
@@ -72,15 +77,15 @@ export default async function DashboardLayout({
                                 key={invitation.id}
                                 invitationId={invitation.id}
                                 userSenderEmail={
-                                  sender?.email || "Usuario desconocido"
+                                  sender?.email || t("unknownUser")
                                 }
-                                description="Te ha enviado una solicitud de amistad"
+                                description={t("invitationDescription")}
                               />
                             );
                           })
                         ) : (
                           <p className="text-sm text-default-500 text-center py-6">
-                            No tienes solicitudes pendientes
+                            {t("noPendingRequests")}
                           </p>
                         )}
                       </div>
@@ -98,10 +103,11 @@ export default async function DashboardLayout({
           ) : (
             <Link href="/login">
               <Button variant="primary" size="sm">
-                Iniciar sesión
+                {t("login")}
               </Button>
             </Link>
           )}
+          <LanguageSelector />
         </div>
       </header>
 

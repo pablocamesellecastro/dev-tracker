@@ -4,8 +4,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import InvitationCard from "@/components/invitation/invitationCard";
 import InviteModal from "@/components/Modals/InviteModal";
-import LogoutButton from "@/components/LogoutButton.tsx";
+import LogoutButton from "@/components/LogoutButton";
 import FriendsModal from "@/components/Modals/FriendsModal";
+import LanguageSelector from "@/components/LanguageSelector";
 
 export default async function DashboardLayout({
   children,
@@ -134,6 +135,7 @@ export default async function DashboardLayout({
               </Button>
             </Link>
           )}
+          <LanguageSelector></LanguageSelector>
         </div>
       </header>
 

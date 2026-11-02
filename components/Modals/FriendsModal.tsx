@@ -4,6 +4,7 @@ import { Button, Modal, Spinner, useOverlayState } from "@heroui/react";
 import { Person, TrashBin } from "@gravity-ui/icons";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { useTranslations } from "next-intl";
 
 type Friend = {
   id: string;
@@ -12,6 +13,7 @@ type Friend = {
 };
 
 export default function FriendsModal() {
+  const t = useTranslations("FriendsModal");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -38,9 +40,9 @@ export default function FriendsModal() {
       .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
 
     if (friendshipsError || !friendships) {
-      console.log("Error al traer amistades:", friendshipsError?.message);
+      console.log(t("loadFailed"));
 
-      setErrorMessage("No se han podido cargar tus amigos");
+      setErrorMessage(t("loadFailed"));
       setIsLoading(false);
       return;
     }
@@ -73,9 +75,9 @@ export default function FriendsModal() {
       .in("id", friendIds);
 
     if (profilesError) {
-      console.log("Error al traer perfiles:", profilesError.message);
+      console.log("Error getting profiles:", profilesError.message);
 
-      setErrorMessage("No se han podido cargar tus amigos");
+      setErrorMessage(t("loadFailed"));
       setIsLoading(false);
       return;
     }
@@ -116,14 +118,13 @@ export default function FriendsModal() {
       .eq("id", friendshipId);
 
     if (deleteFriendshipError) {
-      console.log("Error eliminando amistad:", deleteFriendshipError.message);
+      console.log(t("deleteFailed"));
 
-      setErrorMessage("No se ha podido eliminar la amistad");
+      setErrorMessage(t("deleteFailed"));
       setIsLoading(false);
       return;
     }
 
-    // Volvemos a cargar los amigos para actualizar la interfaz
     await handleSearchFriends();
 
     setIsLoading(false);
@@ -141,7 +142,7 @@ export default function FriendsModal() {
         }}
       >
         <Person className="size-4" />
-        Amigos
+        {t("button")}
       </Button>
 
       <Modal.Backdrop
@@ -154,7 +155,7 @@ export default function FriendsModal() {
             <Modal.CloseTrigger />
 
             <Modal.Header>
-              <Modal.Heading>Tus amigos</Modal.Heading>
+              <Modal.Heading>{t("title")}</Modal.Heading>
             </Modal.Header>
 
             <Modal.Body>
@@ -170,9 +171,7 @@ export default function FriendsModal() {
                 )}
 
                 {!isLoading && !errorMessage && friends.length === 0 && (
-                  <p className="text-sm text-default-500">
-                    Aún no tienes amigos añadidos
-                  </p>
+                  <p className="text-sm text-default-500">{t("empty")}</p>
                 )}
 
                 {!isLoading && friends.length > 0 && (
@@ -186,7 +185,7 @@ export default function FriendsModal() {
 
                         <Button
                           isIconOnly
-                          aria-label="Eliminar amigo"
+                          aria-label={t("deleteAria")}
                           variant="danger"
                           size="sm"
                           onPress={() =>

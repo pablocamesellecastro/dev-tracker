@@ -31,7 +31,9 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <NextIntlClientProvider>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
