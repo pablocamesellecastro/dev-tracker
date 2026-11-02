@@ -1,0 +1,105 @@
+{
+  "Common": {
+    "cancel": "Cancelar",
+    "priority": {
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja"
+    }
+  },
+  "DashboardLayout": {
+    "appName": "Tablero",
+    "workspace": "ESPACIO DE TRABAJO",
+    "login": "Iniciar sesión",
+    "notificationsAria": "Notificaciones",
+    "friendRequestsTitle": "Solicitudes de amistad",
+    "manageConnections": "Gestiona tus conexiones",
+    "unknownUser": "Usuario desconocido",
+    "invitationDescription": "Te ha enviado una solicitud de amistad",
+    "allCaughtUp": "Todo al día",
+    "noPendingRequests": "No tienes solicitudes pendientes."
+  },
+  "FriendsModal": {
+    "button": "Amigos",
+    "title": "Tus amigos",
+    "empty": "Aún no tienes amigos añadidos",
+    "deleteAria": "Eliminar amigo",
+    "errors": {
+      "loadFailed": "No se han podido cargar tus amigos",
+      "deleteFailed": "No se ha podido eliminar la amistad"
+    }
+  },
+  "InviteModal": {
+    "button": "Invitar",
+    "title": "Invitar a un usuario",
+    "emailLabel": "Email del usuario",
+    "emailPlaceholder": "ejemplo@correo.com",
+    "submit": "Enviar invitación",
+    "errors": {
+      "selfInvite": "No puedes invitarte a ti mismo",
+      "userNotFound": "No se ha encontrado ningún usuario con ese email",
+      "inviteFailed": "Algo ha salido mal invitando al usuario"
+    }
+  },
+  "CreateProjectModal": {
+    "button": "Nuevo proyecto",
+    "title": "Crear proyecto",
+    "nameLabel": "Nombre del proyecto",
+    "descriptionLabel": "Descripción",
+    "participantsLabel": "Participantes",
+    "submit": "Crear proyecto",
+    "errors": {
+      "saveFailed": "Error al guardar el proyecto en la base de datos."
+    }
+  },
+  "AddTaskModal": {
+    "button": "Añadir tarea",
+    "title": "Añadir tarea",
+    "nameAria": "Nombre de la tarea",
+    "namePlaceholder": "Nombre de la tarea",
+    "descriptionAria": "Descripción de la tarea",
+    "descriptionPlaceholder": "Descripción de la tarea",
+    "priorityLabel": "Prioridad",
+    "priorityPlaceholder": "Prioridad",
+    "submit": "Añadir tarea"
+  },
+  "AddStateModal": {
+    "button": "Añadir estado",
+    "title": "Añadir estado",
+    "nameAria": "Nombre del estado",
+    "namePlaceholder": "Nombre del estado",
+    "submit": "Añadir estado"
+  },
+  "AddParticipantModal": {
+    "button": "Añadir participante",
+    "title": "Añadir participantes",
+    "submit": "Añadir participantes"
+  },
+  "ProjectPage": {
+    "participants": "Participantes",
+    "admin": "admin",
+    "deleteProject": "Eliminar proyecto"
+  },
+  "LogoutButton": {
+    "button": "Cerrar sesión"
+  },
+  "SelectParticipants": {
+    "ariaLabel": "Usuarios"
+  },
+  "InvitationCard": {
+    "accept": "Aceptar",
+    "decline": "Rechazar"
+  },
+  "TaskCard": {
+    "optionsAria": "Opciones de la tarea {name}",
+    "taskSection": "Tarea",
+    "view": "Ver tarea",
+    "prioritySection": "Prioridad",
+    "delete": "Eliminar tarea"
+  },
+  "LoginPage": {
+    "email": "Email",
+    "password": "Contraseña",
+    "submit": "Entrar"
+  }
+}

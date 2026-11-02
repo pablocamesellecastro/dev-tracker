@@ -1,7 +1,15 @@
 "use client";
 
 import { createProject } from "@/lib/actions";
-import { Button, Input, TextArea, Modal, useOverlayState } from "@heroui/react";
+import {
+  Button,
+  Input,
+  TextArea,
+  TextField,
+  Label,
+  Modal,
+  useOverlayState,
+} from "@heroui/react";
 import { Plus } from "@gravity-ui/icons";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -65,7 +73,7 @@ export default function CreateProjectModal() {
         }}
       >
         <Plus className="size-4" />
-        Nuevo proyecto
+        New project
       </Button>
 
       <Modal.Backdrop isOpen={state.isOpen} onOpenChange={state.setOpen}>
@@ -73,23 +81,36 @@ export default function CreateProjectModal() {
           <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>Crear proyecto</Modal.Heading>
+              <Modal.Heading>Create project</Modal.Heading>
             </Modal.Header>
 
-            <Modal.Body className="flex flex-col">
-              SelectPa
+            <Modal.Body className="flex flex-col gap-4">
+              <TextField
+                value={projectName}
+                onChange={setProjectName}
+                isRequired
+              >
+                <Label>Project name</Label>
+                <Input className="" />
+              </TextField>
 
-              <Modal.Heading className="pt-4 pb-4">Participantes</Modal.Heading>
+              <TextField value={description} onChange={setDescription}>
+                <Label>Description</Label>
+                <TextArea />
+              </TextField>
 
-              <SelectParticipants
-                selected={selected}
-                setSelected={setSelected}
-              ></SelectParticipants>
+              <div>
+                <Label>Participants</Label>
+                <SelectParticipants
+                  selected={selected}
+                  setSelected={setSelected}
+                />
+              </div>
             </Modal.Body>
 
             <Modal.Footer>
               <Button slot="close" variant="secondary">
-                Cancelar
+                Cancel
               </Button>
               <Button
                 type="submit"
@@ -99,7 +120,7 @@ export default function CreateProjectModal() {
                 isDisabled={!projectName.trim()}
                 onPress={handleCreateProject}
               >
-                Crear proyecto
+                Create proyect
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

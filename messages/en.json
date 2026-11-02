@@ -1,0 +1,105 @@
+{
+  "Common": {
+    "cancel": "Cancel",
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
+  },
+  "DashboardLayout": {
+    "appName": "Board",
+    "workspace": "WORKSPACE",
+    "login": "Log in",
+    "notificationsAria": "Notifications",
+    "friendRequestsTitle": "Friend requests",
+    "manageConnections": "Manage your connections",
+    "unknownUser": "Unknown user",
+    "invitationDescription": "Sent you a friend request",
+    "allCaughtUp": "All caught up",
+    "noPendingRequests": "You have no pending requests."
+  },
+  "FriendsModal": {
+    "button": "Friends",
+    "title": "Your friends",
+    "empty": "You haven't added any friends yet",
+    "deleteAria": "Remove friend",
+    "errors": {
+      "loadFailed": "Your friends could not be loaded",
+      "deleteFailed": "The friendship could not be removed"
+    }
+  },
+  "InviteModal": {
+    "button": "Invite",
+    "title": "Invite a user",
+    "emailLabel": "User's email",
+    "emailPlaceholder": "example@mail.com",
+    "submit": "Send invitation",
+    "errors": {
+      "selfInvite": "You can't invite yourself",
+      "userNotFound": "No user was found with that email",
+      "inviteFailed": "Something went wrong while inviting the user"
+    }
+  },
+  "CreateProjectModal": {
+    "button": "New project",
+    "title": "Create project",
+    "nameLabel": "Project name",
+    "descriptionLabel": "Description",
+    "participantsLabel": "Participants",
+    "submit": "Create project",
+    "errors": {
+      "saveFailed": "Error saving the project to the database."
+    }
+  },
+  "AddTaskModal": {
+    "button": "Add task",
+    "title": "Add task",
+    "nameAria": "Task name",
+    "namePlaceholder": "Task name",
+    "descriptionAria": "Task description",
+    "descriptionPlaceholder": "Task description",
+    "priorityLabel": "Priority",
+    "priorityPlaceholder": "Priority",
+    "submit": "Add task"
+  },
+  "AddStateModal": {
+    "button": "Add state",
+    "title": "Add state",
+    "nameAria": "State name",
+    "namePlaceholder": "State name",
+    "submit": "Add state"
+  },
+  "AddParticipantModal": {
+    "button": "Add participant",
+    "title": "Add participants",
+    "submit": "Add participants"
+  },
+  "ProjectPage": {
+    "participants": "Participants",
+    "admin": "admin",
+    "deleteProject": "Delete project"
+  },
+  "LogoutButton": {
+    "button": "Log out"
+  },
+  "SelectParticipants": {
+    "ariaLabel": "Users"
+  },
+  "InvitationCard": {
+    "accept": "Accept",
+    "decline": "Decline"
+  },
+  "TaskCard": {
+    "optionsAria": "Options for task {name}",
+    "taskSection": "Task",
+    "view": "View task",
+    "prioritySection": "Priority",
+    "delete": "Delete task"
+  },
+  "LoginPage": {
+    "email": "Email",
+    "password": "Password",
+    "submit": "Log in"
+  }
+}

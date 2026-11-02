@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { ModalFooter, TextArea, useOverlayState } from "@heroui/react";
 import { Button } from "@heroui/react";
 import { Plus } from "@gravity-ui/icons";
