@@ -37,10 +37,10 @@ export default function KanbanColumn({
   const count = Children.count(children);
 
   return (
-    <div className={className}>
+    <div className={`w-full min-w-0 ${className ?? ""}`}>
       {name && (
         <div className="mb-2 flex items-center justify-center gap-2">
-          <h2 className="font-medium">{name}</h2>
+          <h2 className="text-sm font-medium sm:text-base">{name}</h2>
           <Chip
             size="sm"
             variant="soft"
@@ -53,9 +53,11 @@ export default function KanbanColumn({
 
       <div
         ref={ref}
-        className={`flex min-h-40 gap-3 rounded-2xl  p-4 border-2 ${
-          layout === "row" ? "flex-row flex-wrap items-start" : "flex-col"
-        } ${borderByCategory[category] ?? "border-zinc-400"}`}
+        className={`flex min-h-32 gap-3 rounded-2xl border-2 border-zinc-700 p-3 sm:min-h-40 sm:p-4 ${
+          layout === "row"
+            ? "flex-col sm:flex-row sm:flex-wrap sm:items-start"
+            : "flex-col"
+        } ${borderByCategory[category]}`}
       >
         {children}
       </div>

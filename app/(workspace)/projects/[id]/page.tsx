@@ -75,8 +75,8 @@ export default async function ProjectPage({ params }: PageProps) {
   return (
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-center font-bold">{project.name.toUpperCase()}</h1>
-      <Card variant="secondary">
-        <Card.Content className="flex flex-row flex-wrap items-center gap-2">
+      <Card className="flex items-center bg-transparent">
+        <Card.Content className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center [&>*]:w-full sm:[&>*]:w-auto">
           <AddTaskModal projectId={projectId} />
           <AddStateModal projectId={projectId} />
           <AddParticipantModal projectId={projectId} />
@@ -102,7 +102,7 @@ export default async function ProjectPage({ params }: PageProps) {
             </KanbanColumn>
           </div>
 
-          <div className="flex flex-row items-start gap-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
             {states?.map((state) => (
               <KanbanColumn
                 key={state.id}
