@@ -10,11 +10,12 @@ export default function LogoutButton() {
 
   const handleLogOut = async () => {
     await supabase.auth.signOut();
+    router.push("/login");
     router.refresh();
   };
 
   return (
-    <Button onClick={handleLogOut} size="sm">
+    <Button onPress={handleLogOut} size="sm">
       <ArrowRightToSquare></ArrowRightToSquare>
       cerrar sesion
     </Button>

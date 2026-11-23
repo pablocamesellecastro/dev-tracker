@@ -14,12 +14,16 @@ import { Select } from "@heroui/react";
 import { Label } from "@heroui/react";
 import { ListBox } from "@heroui/react";
 import { supabase } from "@/lib/supabase/client";
+import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 
 interface AddTaskModalProps {
   projectId: string;
 }
 
 export default function AddTaskModal({ projectId }: AddTaskModalProps) {
+  const t = useTranslations("AddTaskModal");
+  const tCommon = useTranslations("Common");
   const state = useOverlayState();
   const [isLoading, setIsLoading] = useState(false);
   const [taskName, setTaskName] = useState("");
@@ -68,7 +72,8 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
             "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
         }}
       >
-        <Plus></Plus>Add Task
+        <Plus></Plus>
+        {t("button")}
       </Button>
 
       <Modal.Backdrop
@@ -79,15 +84,15 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
         <Modal.Container>
           <Modal.Dialog>
             <Modal.CloseTrigger />
-            <Modal.Header>Add task</Modal.Header>
+            <Modal.Header>{t("title")}</Modal.Header>
             <Modal.Body>
               <Modal.Heading className="">
                 <form id="add-task-form" onSubmit={handleAddTask}>
                   <div className="pt-3 pb-3">
                     <Input
                       className="w-full"
-                      aria-label="Add task name"
-                      placeholder="Task name"
+                      aria-label={t("nameAria")}
+                      placeholder={t("namePlaceholder")}
                       required
                       value={taskName}
                       onChange={(e) => setTaskName(e.target.value)}
@@ -97,15 +102,15 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
                   <div className="pt-3 pb-3">
                     <TextArea
                       className="w-full"
-                      aria-label="Task description"
-                      placeholder="Task Description"
+                      aria-label={t("descriptionAria")}
+                      placeholder={t("descriptionPlaceholder")}
                       required
                       onChange={(e) => setTaskDescription(e.target.value)}
                     />
                   </div>
                   <Select
                     className="w-full"
-                    placeholder="Priority"
+                    placeholder={t("priorityPlaceholder")}
                     defaultValue="high"
                     value={taskPriority}
                     onChange={(value) => {
@@ -114,7 +119,7 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
                       }
                     }}
                   >
-                    <Label>Prioridad</Label>
+                    <Label>{t("priorityLabel")}</Label>
                     <Select.Trigger>
                       <Select.Value />
                       <Select.Indicator />
@@ -126,7 +131,7 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
                           textValue="high"
                           className="text-red-600"
                         >
-                          High
+                          {tCommon("priority.high")}
                           <ListBox.ItemIndicator />
                         </ListBox.Item>
                         <ListBox.Item
@@ -134,7 +139,7 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
                           textValue="medium"
                           className="text-orange-400"
                         >
-                          Medium
+                          {tCommon("priority.medium")}
                           <ListBox.ItemIndicator />
                         </ListBox.Item>
                         <ListBox.Item
@@ -142,7 +147,7 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
                           textValue="low"
                           className="text-green-600"
                         >
-                          Low
+                          {tCommon("priority.low")}
                           <ListBox.ItemIndicator />
                         </ListBox.Item>
                       </ListBox>
@@ -153,10 +158,10 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
             </Modal.Body>
             <ModalFooter>
               <Button slot="close" variant="secondary">
-                Cancel
+                {tCommon("cancel")}
               </Button>
               <Button type="submit" form="add-task-form" variant="primary">
-                Add Task
+                {t("submit")}
               </Button>
             </ModalFooter>
           </Modal.Dialog>

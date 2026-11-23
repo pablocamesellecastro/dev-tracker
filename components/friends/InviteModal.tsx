@@ -12,8 +12,11 @@ import {
 import { PersonPlus } from "@gravity-ui/icons";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { useTranslations } from "next-intl";
 
 export default function InviteModal() {
+  const t = useTranslations("InviteModal");
+  const tCommon = useTranslations("Common");
   const [searchEmail, setSearchEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +33,7 @@ export default function InviteModal() {
     } = await supabase.auth.getUser();
 
     if (currentUser?.email === searchEmail) {
-      setErrorMessage("No puedes invitarte a ti mismo");
+      setErrorMessage(t("errors.selfInvite"));
       setIsLoading(false);
       return;
     }
@@ -42,7 +45,7 @@ export default function InviteModal() {
       .single();
 
     if (error || !data) {
-      setErrorMessage("No se ha encontrado ningún usuario con ese email");
+      setErrorMessage(t("errors.userNotFound"));
       setIsLoading(false);
       return;
     }
@@ -57,7 +60,7 @@ export default function InviteModal() {
 
     if (insertError) {
       console.log("Error al crear invitación:", insertError.message);
-      setErrorMessage("Algo ha salido mal invitando al usuario");
+      setErrorMessage(t("errors.inviteFailed"));
       return;
     }
 
@@ -78,7 +81,7 @@ export default function InviteModal() {
           }}
         >
           <PersonPlus className="size-4" />
-          Invitar
+          {t("button")}
         </Button>
 
         <Modal.Backdrop
@@ -90,7 +93,7 @@ export default function InviteModal() {
             <Modal.Dialog className="sm:max-w-md">
               <Modal.CloseTrigger />
               <Modal.Header>
-                <Modal.Heading>Invitar a un usuario</Modal.Heading>
+                <Modal.Heading>{t("title")}</Modal.Heading>
               </Modal.Header>
 
               <Modal.Body>
@@ -105,9 +108,9 @@ export default function InviteModal() {
                     isRequired
                     isInvalid={!!errorMessage}
                   >
-                    <Label>Email del usuario</Label>
+                    <Label>{t("emailLabel")}</Label>
                     <Input
-                      placeholder="ejemplo@correo.com"
+                      placeholder={t("emailPlaceholder")}
                       value={searchEmail}
                       onChange={(e) => setSearchEmail(e.target.value)}
                     />
@@ -121,11 +124,11 @@ export default function InviteModal() {
 
               <Modal.Footer>
                 <Button slot="close" variant="secondary">
-                  Cancelar
+                  {tCommon("cancel")}
                 </Button>
                 <Button type="submit" form="invite-form" isPending={isLoading}>
                   {isLoading && <Spinner size="sm" />}
-                  Enviar invitación
+                  {t("submit")}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>

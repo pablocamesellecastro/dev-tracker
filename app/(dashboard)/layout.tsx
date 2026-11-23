@@ -2,10 +2,10 @@ import { Badge, Button, Popover } from "@heroui/react";
 import { Bell, LayoutColumns } from "@gravity-ui/icons";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import InvitationCard from "@/components/invitation/invitationCard";
-import InviteModal from "@/components/Modals/InviteModal";
-import LogoutButton from "@/components/LogoutButton";
-import FriendsModal from "@/components/Modals/FriendsModal";
+import InvitationCard from "@/components/friends/InvitationCard";
+import InviteModal from "@/components/friends/InviteModal";
+import LogoutButton from "@/components/auth/LogoutButton";
+import FriendsModal from "@/components/friends/FriendsModal";
 import LanguageSelector from "@/components/LanguageSelector";
 
 import { getTranslations } from "next-intl/server";

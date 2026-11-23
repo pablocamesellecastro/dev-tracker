@@ -14,10 +14,13 @@ import { Plus } from "@gravity-ui/icons";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import SelectParticipants from "../SelectParticipants";
+import SelectParticipants from "./SelectParticipants";
 import { Selection } from "@heroui/react";
+import { useTranslations } from "next-intl";
 
 export default function CreateProjectModal() {
+  const t = useTranslations("CreateProjectModal");
+  const tCommon = useTranslations("Common");
   const router = useRouter();
   const state = useOverlayState();
 
@@ -52,7 +55,7 @@ export default function CreateProjectModal() {
         state.close();
         router.refresh();
       } else {
-        alert("Error al guardar el proyecto en la base de datos.");
+        alert(t("errors.saveFailed"));
       }
     } catch (err) {
       console.error(err);
@@ -73,7 +76,7 @@ export default function CreateProjectModal() {
         }}
       >
         <Plus className="size-4" />
-        New project
+        {t("button")}
       </Button>
 
       <Modal.Backdrop isOpen={state.isOpen} onOpenChange={state.setOpen}>
@@ -81,7 +84,7 @@ export default function CreateProjectModal() {
           <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>Create project</Modal.Heading>
+              <Modal.Heading>{t("title")}</Modal.Heading>
             </Modal.Header>
 
             <Modal.Body className="flex flex-col gap-4">
@@ -90,17 +93,17 @@ export default function CreateProjectModal() {
                 onChange={setProjectName}
                 isRequired
               >
-                <Label>Project name</Label>
+                <Label>{t("nameLabel")}</Label>
                 <Input className="" />
               </TextField>
 
               <TextField value={description} onChange={setDescription}>
-                <Label>Description</Label>
+                <Label>{t("descriptionLabel")}</Label>
                 <TextArea />
               </TextField>
 
               <div>
-                <Label>Participants</Label>
+                <Label>{t("participantsLabel")}</Label>
                 <SelectParticipants
                   selected={selected}
                   setSelected={setSelected}
@@ -110,7 +113,7 @@ export default function CreateProjectModal() {
 
             <Modal.Footer>
               <Button slot="close" variant="secondary">
-                Cancel
+                {tCommon("cancel")}
               </Button>
               <Button
                 type="submit"
@@ -120,7 +123,7 @@ export default function CreateProjectModal() {
                 isDisabled={!projectName.trim()}
                 onPress={handleCreateProject}
               >
-                Create proyect
+                {t("submit")}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

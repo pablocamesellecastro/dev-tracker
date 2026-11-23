@@ -1,23 +1,28 @@
 import { Badge, Button, Popover } from "@heroui/react";
 import { Bell, LayoutColumns } from "@gravity-ui/icons";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import InvitationCard from "@/components/invitation/invitationCard";
-import InviteModal from "@/components/Modals/InviteModal";
-import LogoutButton from "@/components/LogoutButton";
-import FriendsModal from "@/components/Modals/FriendsModal";
+import InvitationCard from "@/components/friends/InvitationCard";
+import InviteModal from "@/components/friends/InviteModal";
+import LogoutButton from "@/components/auth/LogoutButton";
+import FriendsModal from "@/components/friends/FriendsModal";
 import LanguageSelector from "@/components/LanguageSelector";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = await getTranslations("DashboardLayout");
   const supabase = await createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
 
   const { data: profiles } = await supabase
     .from("profiles")
@@ -45,10 +50,10 @@ export default async function DashboardLayout({
 
             <div className="flex flex-col gap-0">
               <span className="text-[15px] font-semibold tracking-tight">
-                Tablero
+                {t("appName")}
               </span>
               <span className="text-[11px] font-medium tracking-wide text-default-400">
-                WORKSPACE
+                {t("workspace")}
               </span>
             </div>
           </Link>
@@ -65,7 +70,7 @@ export default async function DashboardLayout({
                       variant="ghost"
                       size="sm"
                       isIconOnly
-                      aria-label="Notificaciones"
+                      aria-label={t("notificationsAria")}
                       className="relative text-default-500 transition-colors hover:text-foreground"
                     >
                       <Bell className="size-[18px]" />
@@ -76,10 +81,10 @@ export default async function DashboardLayout({
                     <Popover.Dialog>
                       <div className="border-b border-default-200 pb-3">
                         <Popover.Heading>
-                          Solicitudes de amistad
+                          {t("friendRequestsTitle")}
                         </Popover.Heading>
                         <p className="mt-1 text-xs text-default-500">
-                          Gestiona tus conexiones
+                          {t("manageConnections")}
                         </p>
                       </div>
 
@@ -95,9 +100,9 @@ export default async function DashboardLayout({
                                 key={invitation.id}
                                 invitationId={invitation.id}
                                 userSenderEmail={
-                                  sender?.email || "Usuario desconocido"
+                                  sender?.email || t("unknownUser")
                                 }
-                                description="Te ha enviado una solicitud de amistad"
+                                description={t("invitationDescription")}
                               />
                             );
                           })
@@ -106,9 +111,11 @@ export default async function DashboardLayout({
                             <div className="flex size-10 items-center justify-center rounded-full bg-default-100">
                               <Bell className="size-4 text-default-400" />
                             </div>
-                            <p className="text-sm font-medium">Todo al día</p>
+                            <p className="text-sm font-medium">
+                              {t("allCaughtUp")}
+                            </p>
                             <p className="text-xs text-default-500">
-                              No tienes solicitudes pendientes.
+                              {t("noPendingRequests")}
                             </p>
                           </div>
                         )}
@@ -131,11 +138,11 @@ export default async function DashboardLayout({
           ) : (
             <Link href="/login">
               <Button variant="primary" size="sm" className="font-medium">
-                Iniciar sesión
+                {t("login")}
               </Button>
             </Link>
           )}
-          <LanguageSelector></LanguageSelector>
+          <LanguageSelector />
         </div>
       </header>
 

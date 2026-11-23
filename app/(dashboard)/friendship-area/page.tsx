@@ -1,22 +1,30 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@heroui/react";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase/client";
 
 export default function Friendships() {
+  const t = useTranslations("InviteModal");
+
   const [searchEmail, setSearchEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [isLoadinng, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSearchUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
     setIsLoading(true);
-    console.log("buscando...");
 
     const {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
+
+    if (currentUser?.email === searchEmail) {
+      setErrorMessage(t("errors.selfInvite"));
+      setIsLoading(false);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("profiles")
@@ -24,35 +32,23 @@ export default function Friendships() {
       .eq("email", searchEmail)
       .single();
 
-    if (currentUser?.email === searchEmail) {
-      setErrorMessage("No puedes invitarte a ti mismo");
-      console.log("No puedes invitarte a ti mismo");
-      setIsLoading(false);
-      return;
-    }
-
     if (data) {
-      console.log("usuario encontrado");
-
-      const { data: insertData, error: insertError } = await supabase
-        .from("friendships")
-        .insert({
-          senderId: currentUser?.id,
-          receiverId: data.id,
-          status: "pending",
-        });
+      const { error: insertError } = await supabase.from("friendships").insert({
+        senderId: currentUser?.id,
+        receiverId: data.id,
+        status: "pending",
+      });
 
       if (insertError) {
         console.log("Error al crear invitación:", insertError.message);
-        setErrorMessage("Algo ha salido mal invitando al usuario");
-      } else {
-        console.log("usuario invitado");
+        setErrorMessage(t("errors.inviteFailed"));
       }
-
-      setIsLoading(false);
     } else {
       console.log(error);
+      setErrorMessage(t("errors.userNotFound"));
     }
+
+    setIsLoading(false);
   };
 
   return (
@@ -64,10 +60,14 @@ export default function Friendships() {
         <input
           type="text"
           className="bg-amber-50 text-black"
+          placeholder={t("emailPlaceholder")}
           value={searchEmail}
           onChange={(e) => setSearchEmail(e.target.value)}
         />
-        <Button type="submit">invite</Button>
+        <Button type="submit" isDisabled={isLoading}>
+          {t("submit")}
+        </Button>
+        {errorMessage && <p className="text-danger">{errorMessage}</p>}
       </form>
     </div>
   );

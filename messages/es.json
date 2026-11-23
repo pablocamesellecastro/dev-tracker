@@ -19,6 +19,17 @@
     "allCaughtUp": "Todo al día",
     "noPendingRequests": "No tienes solicitudes pendientes."
   },
+  "HomePage": {
+    "heroTitle": "Organiza tus proyectos sin perder el hilo",
+    "heroSubtitle": "Tableros, tareas y equipo en un solo sitio. Invita a tus compañeros y avanza junto a ellos.",
+    "login": "Iniciar sesión",
+    "chipKanban": "Tableros Kanban",
+    "chipInvite": "Invita a tu equipo",
+    "chipAllInOne": "Todo en un solo lugar",
+    "yourProjects": "Tus proyectos",
+    "unknownUser": "Usuario desconocido",
+    "emptyProjects": "Aún no tienes proyectos. ¡Crea el primero para empezar!"
+  },
   "FriendsModal": {
     "button": "Amigos",
     "title": "Tus amigos",
@@ -80,6 +91,11 @@
     "admin": "admin",
     "deleteProject": "Eliminar proyecto"
   },
+  "ProjectCard": {
+    "noDescription": "Este proyecto todavía no tiene descripción.",
+    "createdBy": "Creado por",
+    "project": "Proyecto"
+  },
   "LogoutButton": {
     "button": "Cerrar sesión"
   },
@@ -101,5 +117,12 @@
     "email": "Email",
     "password": "Contraseña",
     "submit": "Entrar"
+  },
+  "TaskModal": {
+    "priority": "Prioridad",
+    "noPriority": "Sin prioridad",
+    "description": "Descripción",
+    "noDescription": "Esta tarea no tiene descripción.",
+    "close": "Cerrar"
   }
 }

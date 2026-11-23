@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Selection } from "@heroui/react";
-import SelectParticipants from "@/components/SelectParticipants";
+import SelectParticipants from "@/components/projects/SelectParticipants";
 
 export default function CreateTaskForm() {
   const [selected, setSelected] = useState<Selection>(new Set([]));

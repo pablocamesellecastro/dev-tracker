@@ -19,6 +19,17 @@
     "allCaughtUp": "All caught up",
     "noPendingRequests": "You have no pending requests."
   },
+  "HomePage": {
+    "heroTitle": "Organize your projects without losing track",
+    "heroSubtitle": "Boards, tasks and team in one place. Invite your teammates and move forward together.",
+    "login": "Log in",
+    "chipKanban": "Kanban boards",
+    "chipInvite": "Invite your team",
+    "chipAllInOne": "Everything in one place",
+    "yourProjects": "Your projects",
+    "unknownUser": "Unknown user",
+    "emptyProjects": "You don't have any projects yet. Create your first one to get started!"
+  },
   "FriendsModal": {
     "button": "Friends",
     "title": "Your friends",
@@ -80,6 +91,11 @@
     "admin": "admin",
     "deleteProject": "Delete project"
   },
+  "ProjectCard": {
+    "noDescription": "This project doesn't have a description yet.",
+    "createdBy": "Created by",
+    "project": "Project"
+  },
   "LogoutButton": {
     "button": "Log out"
   },
@@ -101,5 +117,12 @@
     "email": "Email",
     "password": "Password",
     "submit": "Log in"
+  },
+  "TaskModal": {
+    "priority": "Priority",
+    "noPriority": "No priority",
+    "description": "Description",
+    "noDescription": "This task has no description.",
+    "close": "Close"
   }
 }

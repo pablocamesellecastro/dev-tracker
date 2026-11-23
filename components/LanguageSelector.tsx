@@ -26,7 +26,6 @@ export default function LanguageSelector() {
             onPress={() => change("en")}
           >
             English
-            <ListBox.ItemIndicator />
           </ListBox.Item>
           <ListBox.Item
             id="delaware"
@@ -34,7 +33,6 @@ export default function LanguageSelector() {
             onPress={() => change("es")}
           >
             Español
-            <ListBox.ItemIndicator />
           </ListBox.Item>
         </ListBox>
       </Select.Popover>

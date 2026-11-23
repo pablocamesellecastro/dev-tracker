@@ -1,19 +1,12 @@
 "use client";
 import { Button } from "@heroui/react";
-import { useAuth } from "@/hooks/Auth";
+import { useTranslations } from "next-intl";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
-  const {
-    email,
-    setEmail,
-    password,
-    setPassword,
-    loading,
-    setLoading,
-    errorMsg,
-    setErrorMsg,
-    handleLogin,
-  } = useAuth();
+  const t = useTranslations("LoginPage");
+
+  const { email, setEmail, password, setPassword, handleLogin } = useAuth();
 
   return (
     <div className="">
@@ -24,24 +17,24 @@ export default function Login() {
         <div>
           <input
             type="text"
-            title="email"
+            title={t("email")}
             className="bg-white text-black"
-            placeholder="email"
+            placeholder={t("email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
         <div>
           <input
-            type="text"
-            title="password"
+            type="password"
+            title={t("password")}
             className="bg-white text-black"
-            placeholder="contraseña"
+            placeholder={t("password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <Button type="submit">ENTER</Button>
+        <Button type="submit">{t("submit")}</Button>
       </form>
     </div>
   );

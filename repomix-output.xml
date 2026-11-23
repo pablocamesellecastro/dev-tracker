@@ -1,0 +1,3854 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app/
+  (auth)/
+    login/
+      page.tsx
+  (dashboard)/
+    friendship-area/
+      page.tsx
+    layout.tsx
+    page.tsx
+  (workspace)/
+    projects/
+      [id]/
+        page.tsx
+    layout.tsx
+  providers/
+    providers.tsx
+  globals.css
+  layout.tsx
+  proxy.ts
+components/
+  auth/
+    LogoutButton.tsx
+  friends/
+    FriendsModal.tsx
+    InvitationCard.tsx
+    InviteModal.tsx
+  kanban/
+    KanbanBoard.tsx
+    KanbanColumn.tsx
+  projects/
+    AddParticipantModal.tsx
+    AddStateModal.tsx
+    CreateProjectModal.tsx
+    ProjectCard.tsx
+    SelectParticipants.tsx
+  tasks/
+    AddTaskModal.tsx
+    CreateTaskForm.tsx
+    TaskCard.tsx
+    TaskModal.tsx
+  LanguageSelector.tsx
+helpers/
+  currentUser.ts
+hooks/
+  useAuth.ts
+  useFriendships.ts
+i18n/
+  request.ts
+lib/
+  supabase/
+    client.ts
+    server.ts
+  actions.ts
+messages/
+  en.json
+  es.json
+supabase/
+  .temp/
+    cli-latest
+    gotrue-version
+    linked-project.json
+    pooler-url
+    postgres-version
+    project-ref
+    rest-version
+    storage-migration
+    storage-version
+  migrations/
+    20260916110246_remote_schema.sql
+    20260916110700_remote_schema.sql
+types/
+  friendship.ts
+  project.ts
+  projectMember.ts
+  task.ts
+  user.ts
+.gitignore
+AGENTS.md
+CLAUDE.md
+data.sql
+eslint.config.mjs
+next.config.ts
+package.json
+postcss.config.mjs
+README.md
+roles.sql
+schema.sql
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app/proxy.ts">
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+const PUBLIC_PATHS = ["/", "/login"];
+
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isPublic = PUBLIC_PATHS.includes(request.nextUrl.pathname);
+
+  if (!user && !isPublic) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    const redirect = NextResponse.redirect(url);
+
+    response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};
+</file>
+
+<file path="components/auth/LogoutButton.tsx">
+"use client";
+
+import { Button } from "@heroui/react";
+import { supabase } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { ArrowRightToSquare, PersonXmark } from "@gravity-ui/icons";
+
+export default function LogoutButton() {
+  const router = useRouter();
+
+  const handleLogOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
+  return (
+    <Button onPress={handleLogOut} size="sm">
+      <ArrowRightToSquare></ArrowRightToSquare>
+      cerrar sesion
+    </Button>
+  );
+}
+</file>
+
+<file path="components/friends/FriendsModal.tsx">
+"use client";
+
+import { Button, Modal, Spinner, useOverlayState } from "@heroui/react";
+import { Person, TrashBin } from "@gravity-ui/icons";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
+import { useTranslations } from "next-intl";
+
+type Friend = {
+  id: string;
+  email: string;
+  friendshipId: string;
+};
+
+export default function FriendsModal() {
+  const t = useTranslations("FriendsModal");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [friends, setFriends] = useState<Friend[]>([]);
+
+  const state = useOverlayState();
+
+  const handleSearchFriends = async () => {
+    setErrorMessage("");
+    setIsLoading(true);
+
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+
+    if (!currentUser) {
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: friendships, error: friendshipsError } = await supabase
+      .from("friendships")
+      .select("id, sender_id, receiver_id, status")
+      .eq("status", "accepted")
+      .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+
+    if (friendshipsError || !friendships) {
+      console.log(t("loadFailed"));
+
+      setErrorMessage(t("loadFailed"));
+      setIsLoading(false);
+      return;
+    }
+
+    const friendsWithIds = friendships.map((row) => {
+      if (row.sender_id === currentUser.id) {
+        return {
+          friendId: row.receiver_id,
+          friendshipId: row.id,
+        };
+      } else {
+        return {
+          friendId: row.sender_id,
+          friendshipId: row.id,
+        };
+      }
+    });
+
+    if (friendsWithIds.length === 0) {
+      setFriends([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const friendIds = friendsWithIds.map((friend) => friend.friendId);
+
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, email")
+      .in("id", friendIds);
+
+    if (profilesError) {
+      console.log("Error getting profiles:", profilesError.message);
+
+      setErrorMessage(t("loadFailed"));
+      setIsLoading(false);
+      return;
+    }
+
+    const friendsWithFriendshipId = profilesData.map((profile) => {
+      const friendship = friendsWithIds.find(
+        (friend) => friend.friendId === profile.id,
+      );
+
+      return {
+        id: profile.id,
+        email: profile.email,
+        friendshipId: friendship!.friendshipId,
+      };
+    });
+
+    setFriends(friendsWithFriendshipId);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    if (!state.isOpen) return;
+
+    const timeoutId = setTimeout(() => {
+      void handleSearchFriends();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [state.isOpen]);
+
+  const handleDeleteFriendship = async (friendshipId: string) => {
+    setErrorMessage("");
+    setIsLoading(true);
+
+    const { error: deleteFriendshipError } = await supabase
+      .from("Friendships")
+      .delete()
+      .eq("id", friendshipId);
+
+    if (deleteFriendshipError) {
+      console.log(t("deleteFailed"));
+
+      setErrorMessage(t("deleteFailed"));
+      setIsLoading(false);
+      return;
+    }
+
+    await handleSearchFriends();
+
+    setIsLoading(false);
+  };
+
+  return (
+    <Modal>
+      <Button
+        size="sm"
+        variant="ghost"
+        onPress={state.open}
+        style={{
+          boxShadow:
+            "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
+        }}
+      >
+        <Person className="size-4" />
+        {t("button")}
+      </Button>
+
+      <Modal.Backdrop
+        className="backdrop-blur-sm"
+        isOpen={state.isOpen}
+        onOpenChange={state.setOpen}
+      >
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-md">
+            <Modal.CloseTrigger />
+
+            <Modal.Header>
+              <Modal.Heading>{t("title")}</Modal.Heading>
+            </Modal.Header>
+
+            <Modal.Body>
+              <div className="flex flex-col gap-4">
+                {isLoading && (
+                  <div className="flex justify-center py-6">
+                    <Spinner size="sm" />
+                  </div>
+                )}
+
+                {!isLoading && errorMessage && (
+                  <p className="text-sm text-danger">{errorMessage}</p>
+                )}
+
+                {!isLoading && !errorMessage && friends.length === 0 && (
+                  <p className="text-sm text-default-500">{t("empty")}</p>
+                )}
+
+                {!isLoading && friends.length > 0 && (
+                  <ul className="flex flex-col gap-2">
+                    {friends.map((friend) => (
+                      <li
+                        key={friend.id}
+                        className="flex flex-row items-center justify-between"
+                      >
+                        {friend.email}
+
+                        <Button
+                          isIconOnly
+                          aria-label={t("deleteAria")}
+                          variant="danger"
+                          size="sm"
+                          onPress={() =>
+                            handleDeleteFriendship(friend.friendshipId)
+                          }
+                        >
+                          <TrashBin />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </Modal.Body>
+
+            <Modal.Footer></Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
+  );
+}
+</file>
+
+<file path="components/friends/InvitationCard.tsx">
+"use client";
+
+import { Card, Button } from "@heroui/react";
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { supabase } from "@/lib/supabase/client";
+
+interface InvitationCardProps {
+  invitationId: string;
+  userSenderEmail: string;
+  description: string;
+}
+
+export default function InvitationCard({
+  invitationId,
+  userSenderEmail,
+  description,
+}: InvitationCardProps) {
+  const t = useTranslations("InvitationCard");
+
+  const [isVisible, setIsVisible] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAccept = async () => {
+    setIsLoading(true);
+
+    const { error } = await supabase
+      .from("Friendships")
+      .update({ status: "accepted" })
+      .eq("id", invitationId);
+
+    if (error) {
+      console.log("Error al aceptar invitación:", error.message);
+    } else {
+      console.log("Invitación aceptada con éxito");
+      setIsVisible(false);
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleDecline = async () => {
+    setIsLoading(true);
+
+    const { error } = await supabase
+      .from("Friendships")
+      .update({ status: "rejected" })
+      .eq("id", invitationId);
+
+    if (error) {
+      console.log("Error al rechazar invitación:", error.message);
+    } else {
+      console.log("Invitación rechazada");
+      setIsVisible(false);
+    }
+
+    setIsLoading(false);
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <Card className="w-full max-w-sm">
+      <Card.Content className="gap-3">
+        <div>
+          <p className="font-semibold">{userSenderEmail}</p>
+          <p className="text-default-500 text-sm">{description}</p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            isPending={isLoading}
+            onPress={handleAccept}
+          >
+            {t("accept")}
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            isPending={isLoading}
+            onPress={handleDecline}
+          >
+            {t("decline")}
+          </Button>
+        </div>
+      </Card.Content>
+    </Card>
+  );
+}
+</file>
+
+<file path="components/friends/InviteModal.tsx">
+"use client";
+
+import {
+  Button,
+  Input,
+  Label,
+  Modal,
+  Spinner,
+  TextField,
+  useOverlayState,
+} from "@heroui/react";
+import { PersonPlus } from "@gravity-ui/icons";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase/client";
+import { useTranslations } from "next-intl";
+
+export default function InviteModal() {
+  const t = useTranslations("InviteModal");
+  const tCommon = useTranslations("Common");
+  const [searchEmail, setSearchEmail] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const state = useOverlayState();
+
+  const handleSearchUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setIsLoading(true);
+
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+
+    if (currentUser?.email === searchEmail) {
+      setErrorMessage(t("errors.selfInvite"));
+      setIsLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("email", searchEmail)
+      .single();
+
+    if (error || !data) {
+      setErrorMessage(t("errors.userNotFound"));
+      setIsLoading(false);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("friendships").insert({
+      senderId: currentUser?.id,
+      receiverId: data.id,
+      status: "pending",
+    });
+
+    setIsLoading(false);
+
+    if (insertError) {
+      console.log("Error al crear invitación:", insertError.message);
+      setErrorMessage(t("errors.inviteFailed"));
+      return;
+    }
+
+    setSearchEmail("");
+    state.close();
+  };
+
+  return (
+    <div className="">
+      <Modal>
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={state.open}
+          style={{
+            boxShadow:
+              "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
+          }}
+        >
+          <PersonPlus className="size-4" />
+          {t("button")}
+        </Button>
+
+        <Modal.Backdrop
+          isOpen={state.isOpen}
+          onOpenChange={state.setOpen}
+          className="backdrop-blur-sm"
+        >
+          <Modal.Container>
+            <Modal.Dialog className="sm:max-w-md">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading>{t("title")}</Modal.Heading>
+              </Modal.Header>
+
+              <Modal.Body>
+                <form
+                  id="invite-form"
+                  className="flex flex-col gap-4"
+                  onSubmit={handleSearchUser}
+                >
+                  <TextField
+                    name="email"
+                    type="email"
+                    isRequired
+                    isInvalid={!!errorMessage}
+                  >
+                    <Label>{t("emailLabel")}</Label>
+                    <Input
+                      placeholder={t("emailPlaceholder")}
+                      value={searchEmail}
+                      onChange={(e) => setSearchEmail(e.target.value)}
+                    />
+                  </TextField>
+
+                  {errorMessage && (
+                    <p className="text-sm text-danger">{errorMessage}</p>
+                  )}
+                </form>
+              </Modal.Body>
+
+              <Modal.Footer>
+                <Button slot="close" variant="secondary">
+                  {tCommon("cancel")}
+                </Button>
+                <Button type="submit" form="invite-form" isPending={isLoading}>
+                  {isLoading && <Spinner size="sm" />}
+                  {t("submit")}
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+    </div>
+  );
+}
+</file>
+
+<file path="components/projects/AddParticipantModal.tsx">
+"use client";
+
+import { useRouter } from "next/navigation";
+import { ModalFooter, TextArea, useOverlayState } from "@heroui/react";
+import { Button } from "@heroui/react";
+import { Plus } from "@gravity-ui/icons";
+import type { FormEvent } from "react";
+import { Modal } from "@heroui/react";
+import { useState } from "react";
+import { Selection } from "@heroui/react";
+import { Input } from "@heroui/react";
+import { Select } from "@heroui/react";
+import { Label } from "@heroui/react";
+import { ListBox } from "@heroui/react";
+import { supabase } from "@/lib/supabase/client";
+import SelectParticipants from "./SelectParticipants";
+import { getCurrentUser } from "@/helpers/currentUser";
+import { addParticipants } from "@/lib/actions";
+import { useEffect } from "react";
+import { useTranslations } from "next-intl";
+
+interface AddParticipantModalProps {
+  projectId: string;
+}
+
+export default function AddParticipantModal({
+  projectId,
+}: AddParticipantModalProps) {
+  const t = useTranslations("AddParticipantModal");
+  const tCommon = useTranslations("Common");
+  const state = useOverlayState();
+  const [taskName, setTaskName] = useState("");
+  const [taskPriority, setTaskPriority] = useState<string>("");
+  const [selected, setSelected] = useState<Selection>(new Set([]));
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+
+  useEffect(() => {
+    async function cargarCurrentUserId() {
+      const { currentUserId } = await getCurrentUser();
+      setCurrentUserId(currentUserId);
+    }
+    cargarCurrentUserId();
+  }, []);
+
+  const handleAddParticipants = async () => {
+    const ids = selected === "all" ? [] : (Array.from(selected) as string[]);
+    addParticipants(projectId, ids);
+  };
+
+  return (
+    <>
+      <Button
+        type="submit"
+        size="sm"
+        onPress={state.open}
+        className="gradient-border relative z-0 rounded-full bg-linear-to-t from-neutral-100 to-white px-10 py-3 font-[450] text-neutral-800 shadow-none transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] [--gradient-border-width:1.5px] [--gradient-border:linear-gradient(315deg,#e5e5e5_0%,#fafafa_50%,#c4c4c4_100%)] hover:from-white hover:to-neutral-50 hover:brightness-105 active:scale-95 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-800/80 dark:text-neutral-100 dark:[--gradient-border:linear-gradient(315deg,#404040_0%,#262626_50%,#525252_100%)] dark:hover:from-neutral-800 dark:hover:via-neutral-800 dark:hover:to-neutral-900/90"
+        variant="ghost"
+        style={{
+          boxShadow:
+            "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
+        }}
+      >
+        <Plus></Plus>
+        {t("button")}
+      </Button>
+
+      <Modal.Backdrop
+        className="backdrop-blur-sm"
+        isOpen={state.isOpen}
+        onOpenChange={state.setOpen}
+      >
+        <Modal.Container>
+          <Modal.Dialog>
+            <Modal.CloseTrigger />
+            <Modal.Header>{t("title")}</Modal.Header>
+            <Modal.Body>
+              <Modal.Heading className="">
+                <SelectParticipants
+                  selected={selected}
+                  setSelected={setSelected}
+                ></SelectParticipants>
+              </Modal.Heading>
+            </Modal.Body>
+            <ModalFooter>
+              <Button slot="close" variant="secondary">
+                {tCommon("cancel")}
+              </Button>
+              <Button
+                type="submit"
+                form="add-task-form"
+                variant="primary"
+                onPress={handleAddParticipants}
+              >
+                {t("submit")}
+              </Button>
+            </ModalFooter>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </>
+  );
+}
+</file>
+
+<file path="components/projects/AddStateModal.tsx">
+"use client";
+import { useRouter } from "next/navigation";
+import { ModalFooter, TextArea, useOverlayState } from "@heroui/react";
+import { Button } from "@heroui/react";
+import { Plus } from "@gravity-ui/icons";
+import type { FormEvent } from "react";
+import { Modal } from "@heroui/react";
+import { useState } from "react";
+import { Selection } from "@heroui/react";
+import { Input } from "@heroui/react";
+import { Select } from "@heroui/react";
+import { Label } from "@heroui/react";
+import { ListBox } from "@heroui/react";
+import { supabase } from "@/lib/supabase/client";
+import SelectParticipants from "./SelectParticipants";
+import { getCurrentUser } from "@/helpers/currentUser";
+import { addParticipants } from "@/lib/actions";
+import { useEffect } from "react";
+import { ReactFormState } from "react-dom/client";
+import { addState } from "@/lib/actions";
+import { useTranslations } from "next-intl";
+
+interface Props {
+  projectId: string;
+}
+
+export default function AddStateModal({ projectId }: Props) {
+  const t = useTranslations("AddStateModal");
+  const tCommon = useTranslations("Common");
+  const state = useOverlayState();
+  const router = useRouter();
+  const [stateName, setStateName] = useState("");
+
+  const handleAddState = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await addState(projectId, stateName);
+      state.close();
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        type="submit"
+        size="sm"
+        onPress={state.open}
+        className="gradient-border relative z-0 rounded-full bg-linear-to-t from-neutral-100 to-white px-10 py-3 font-[450] text-neutral-800 shadow-none transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] [--gradient-border-width:1.5px] [--gradient-border:linear-gradient(315deg,#e5e5e5_0%,#fafafa_50%,#c4c4c4_100%)] hover:from-white hover:to-neutral-50 hover:brightness-105 active:scale-95 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-800/80 dark:text-neutral-100 dark:[--gradient-border:linear-gradient(315deg,#404040_0%,#262626_50%,#525252_100%)] dark:hover:from-neutral-800 dark:hover:via-neutral-800 dark:hover:to-neutral-900/90"
+        variant="ghost"
+        style={{
+          boxShadow:
+            "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
+        }}
+      >
+        <Plus></Plus>
+        {t("button")}
+      </Button>
+      <Modal.Backdrop
+        className="backdrop-blur-sm"
+        isOpen={state.isOpen}
+        onOpenChange={state.setOpen}
+      >
+        <Modal.Container>
+          <Modal.Dialog>
+            <Modal.CloseTrigger />
+            <Modal.Header>{t("title")}</Modal.Header>
+            <Modal.Body>
+              <Modal.Heading className="">
+                <form id="add-task-form" onSubmit={handleAddState}>
+                  <div className="pt-3 pb-3">
+                    <Input
+                      className="w-full"
+                      aria-label={t("nameAria")}
+                      placeholder={t("namePlaceholder")}
+                      required
+                      value={stateName}
+                      onChange={(e) => setStateName(e.target.value)}
+                    />
+                  </div>
+                </form>
+              </Modal.Heading>
+            </Modal.Body>
+            <ModalFooter>
+              <Button slot="close" variant="secondary">
+                {tCommon("cancel")}
+              </Button>
+              <Button type="submit" form="add-task-form" variant="primary">
+                {t("submit")}
+              </Button>
+            </ModalFooter>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </>
+  );
+}
+</file>
+
+<file path="components/projects/CreateProjectModal.tsx">
+"use client";
+
+import { createProject } from "@/lib/actions";
+import {
+  Button,
+  Input,
+  TextArea,
+  TextField,
+  Label,
+  Modal,
+  useOverlayState,
+} from "@heroui/react";
+import { Plus } from "@gravity-ui/icons";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
+import SelectParticipants from "./SelectParticipants";
+import { Selection } from "@heroui/react";
+import { useTranslations } from "next-intl";
+
+export default function CreateProjectModal() {
+  const t = useTranslations("CreateProjectModal");
+  const tCommon = useTranslations("Common");
+  const router = useRouter();
+  const state = useOverlayState();
+
+  const [projectName, setProjectName] = useState("");
+  const [description, setDescription] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selected, setSelected] = useState<Selection>(new Set([]));
+
+  console.log(selected);
+
+  const handleCreateProject = async () => {
+    setIsLoading(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        console.log("Usuario no logueado");
+        return;
+      }
+
+      ///________________________________________________________________________
+      ///consulta crear proyecto
+
+      const result = await createProject(projectName, description, selected);
+
+      ///________________________________________________________________________
+
+      if (result) {
+        setProjectName("");
+        setDescription("");
+        state.close();
+        router.refresh();
+      } else {
+        alert(t("errors.saveFailed"));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        onPress={state.open}
+        className="gradient-border relative z-0 rounded-full bg-linear-to-t from-neutral-100 to-white px-10 py-3 font-[450] text-neutral-800 shadow-none transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] [--gradient-border-width:1.5px] [--gradient-border:linear-gradient(315deg,#e5e5e5_0%,#fafafa_50%,#c4c4c4_100%)] hover:from-white hover:to-neutral-50 hover:brightness-105 active:scale-95 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-800/80 dark:text-neutral-100 dark:[--gradient-border:linear-gradient(315deg,#404040_0%,#262626_50%,#525252_100%)] dark:hover:from-neutral-800 dark:hover:via-neutral-800 dark:hover:to-neutral-900/90"
+        variant="ghost"
+        style={{
+          boxShadow:
+            "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
+        }}
+      >
+        <Plus className="size-4" />
+        {t("button")}
+      </Button>
+
+      <Modal.Backdrop isOpen={state.isOpen} onOpenChange={state.setOpen}>
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-md">
+            <Modal.CloseTrigger />
+            <Modal.Header>
+              <Modal.Heading>{t("title")}</Modal.Heading>
+            </Modal.Header>
+
+            <Modal.Body className="flex flex-col gap-4">
+              <TextField
+                value={projectName}
+                onChange={setProjectName}
+                isRequired
+              >
+                <Label>{t("nameLabel")}</Label>
+                <Input className="" />
+              </TextField>
+
+              <TextField value={description} onChange={setDescription}>
+                <Label>{t("descriptionLabel")}</Label>
+                <TextArea />
+              </TextField>
+
+              <div>
+                <Label>{t("participantsLabel")}</Label>
+                <SelectParticipants
+                  selected={selected}
+                  setSelected={setSelected}
+                />
+              </div>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button slot="close" variant="secondary">
+                {tCommon("cancel")}
+              </Button>
+              <Button
+                type="submit"
+                form="create-project-form"
+                variant="primary"
+                isPending={isLoading}
+                isDisabled={!projectName.trim()}
+                onPress={handleCreateProject}
+              >
+                {t("submit")}
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </>
+  );
+}
+</file>
+
+<file path="components/projects/ProjectCard.tsx">
+"use client";
+
+import { Avatar, Card, Chip } from "@heroui/react";
+import { ArrowRight, Folder } from "@gravity-ui/icons";
+import { projectCreator } from "@/lib/actions";
+
+interface ProjectCardProps {
+  projectId: string;
+  name: string;
+  description: string;
+  ownerEmail: string;
+}
+
+export default function ProjectCard({
+  name,
+  description,
+  projectId,
+  ownerEmail,
+}: ProjectCardProps) {
+  const ownerEmailInitial = ownerEmail?.charAt(0)?.toUpperCase() || "?";
+
+  return (
+    <Card
+      className="
+        group
+        cursor-pointer
+        border
+        border-default-200
+        bg-background
+        transition-all
+        duration-300
+        hover:-translate-y-1
+        hover:border-default-300
+        hover:shadow-lg
+      "
+    >
+      <Card.Content className="flex flex-col gap-5 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div
+            className="
+              flex size-11 shrink-0 items-center justify-center
+              rounded-xl
+              bg-accent/10
+              text-accent
+            "
+          >
+            <Folder className="size-5" />
+          </div>
+
+          <ArrowRight
+            className="
+              size-4
+              text-default-300
+              transition-all
+              duration-300
+              group-hover:translate-x-1
+              group-hover:text-default-600
+            "
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <h3
+            className="
+              text-lg
+              font-semibold
+              tracking-tight
+              text-foreground
+              transition-colors
+              group-hover:text-accent
+            "
+          >
+            {name}
+          </h3>
+
+          <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-default-500">
+            {description || "Este proyecto todavía no tiene descripción."}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-default-100 pt-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <Avatar size="sm" color="accent">
+              <Avatar.Fallback>{ownerEmailInitial}</Avatar.Fallback>
+            </Avatar>
+
+            <div className="min-w-0">
+              <p className="text-[11px] text-default-400">Creado por</p>
+
+              <p className="truncate text-xs font-medium text-default-600">
+                {ownerEmail}
+              </p>
+            </div>
+          </div>
+
+          <Chip size="sm" variant="soft">
+            Proyecto
+          </Chip>
+        </div>
+      </Card.Content>
+    </Card>
+  );
+}
+</file>
+
+<file path="components/projects/SelectParticipants.tsx">
+"use client";
+
+import { Avatar, Description, Label, ListBox, Surface } from "@heroui/react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
+import { Friendships } from "@/hooks/useFriendships";
+import { getCurrentUser } from "@/helpers/currentUser";
+import { User } from "@/types/user";
+import { Check } from "@gravity-ui/icons";
+import type { Selection } from "@heroui/react";
+
+interface SelectParticipantsProps {
+  selected: Selection;
+  setSelected: (selection: Selection) => void;
+}
+
+export default function SelectParticipants({
+  selected,
+  setSelected,
+}: SelectParticipantsProps) {
+  ///_____________________________________________________
+  const [data, setData] = useState<User[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const result = await Friendships();
+
+      setData(result.friendships);
+    };
+
+    fetchData();
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <Surface className=" rounded-3xl shadow-surface">
+        <ListBox
+          aria-label="Users"
+          selectedKeys={selected}
+          selectionMode="multiple"
+          onSelectionChange={setSelected}
+        >
+          {data.map((friend) => (
+            <ListBox.Item
+              key={friend.id}
+              textValue={friend.name}
+              id={friend.id}
+            >
+              <Avatar size="sm">
+                <Avatar.Image
+                  alt="Bob"
+                  src="https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/blue.jpg"
+                />
+                <Avatar.Fallback>{friend.initial}</Avatar.Fallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <Label>{friend.email}</Label>
+                <Description>{friend.email}</Description>
+              </div>
+              <ListBox.ItemIndicator>
+                {({ isSelected }) =>
+                  isSelected ? (
+                    <Check className="size-4 text-accent-soft-foreground" />
+                  ) : null
+                }
+              </ListBox.ItemIndicator>
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Surface>
+    </div>
+  );
+}
+</file>
+
+<file path="components/tasks/AddTaskModal.tsx">
+"use client";
+
+import { useRouter } from "next/navigation";
+
+import { ModalFooter, TextArea, useOverlayState } from "@heroui/react";
+import { Button } from "@heroui/react";
+import { Plus } from "@gravity-ui/icons";
+import type { FormEvent } from "react";
+import { Modal } from "@heroui/react";
+import { useState } from "react";
+import { Selection } from "@heroui/react";
+import { Input } from "@heroui/react";
+import { Select } from "@heroui/react";
+import { Label } from "@heroui/react";
+import { ListBox } from "@heroui/react";
+import { supabase } from "@/lib/supabase/client";
+import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
+
+interface AddTaskModalProps {
+  projectId: string;
+}
+
+export default function AddTaskModal({ projectId }: AddTaskModalProps) {
+  const t = useTranslations("AddTaskModal");
+  const tCommon = useTranslations("Common");
+  const state = useOverlayState();
+  const [isLoading, setIsLoading] = useState(false);
+  const [taskName, setTaskName] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskPriority, setTaskPriority] = useState<string>("");
+
+  const router = useRouter();
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setIsLoading(true);
+
+    const { data: addTaskData, error: addTaskError } = await supabase
+      .from("tasks")
+      .insert({
+        name: taskName,
+        description: taskDescription,
+        priority: taskPriority,
+        project_id: projectId,
+      })
+      .select("id");
+
+    if (addTaskError) {
+      console.log(addTaskError.message);
+    } else {
+      setIsLoading(false);
+      state.close();
+      router.refresh();
+      return addTaskData.length;
+    }
+
+    setIsLoading(false);
+  };
+
+  return (
+    <>
+      <Button
+        type="submit"
+        size="sm"
+        onPress={state.open}
+        className="gradient-border relative z-0 rounded-full bg-linear-to-t from-neutral-100 to-white px-10 py-3 font-[450] text-neutral-800 shadow-none transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] [--gradient-border-width:1.5px] [--gradient-border:linear-gradient(315deg,#e5e5e5_0%,#fafafa_50%,#c4c4c4_100%)] hover:from-white hover:to-neutral-50 hover:brightness-105 active:scale-95 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-800/80 dark:text-neutral-100 dark:[--gradient-border:linear-gradient(315deg,#404040_0%,#262626_50%,#525252_100%)] dark:hover:from-neutral-800 dark:hover:via-neutral-800 dark:hover:to-neutral-900/90"
+        variant="ghost"
+        style={{
+          boxShadow:
+            "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
+        }}
+      >
+        <Plus></Plus>
+        {t("button")}
+      </Button>
+
+      <Modal.Backdrop
+        className="backdrop-blur-sm"
+        isOpen={state.isOpen}
+        onOpenChange={state.setOpen}
+      >
+        <Modal.Container>
+          <Modal.Dialog>
+            <Modal.CloseTrigger />
+            <Modal.Header>{t("title")}</Modal.Header>
+            <Modal.Body>
+              <Modal.Heading className="">
+                <form id="add-task-form" onSubmit={handleAddTask}>
+                  <div className="pt-3 pb-3">
+                    <Input
+                      className="w-full"
+                      aria-label={t("nameAria")}
+                      placeholder={t("namePlaceholder")}
+                      required
+                      value={taskName}
+                      onChange={(e) => setTaskName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="pt-3 pb-3">
+                    <TextArea
+                      className="w-full"
+                      aria-label={t("descriptionAria")}
+                      placeholder={t("descriptionPlaceholder")}
+                      required
+                      onChange={(e) => setTaskDescription(e.target.value)}
+                    />
+                  </div>
+                  <Select
+                    className="w-full"
+                    placeholder={t("priorityPlaceholder")}
+                    defaultValue="high"
+                    value={taskPriority}
+                    onChange={(value) => {
+                      if (typeof value === "string") {
+                        setTaskPriority(value);
+                      }
+                    }}
+                  >
+                    <Label>{t("priorityLabel")}</Label>
+                    <Select.Trigger>
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        <ListBox.Item
+                          id="high"
+                          textValue="high"
+                          className="text-red-600"
+                        >
+                          {tCommon("priority.high")}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                        <ListBox.Item
+                          id="medium"
+                          textValue="medium"
+                          className="text-orange-400"
+                        >
+                          {tCommon("priority.medium")}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                        <ListBox.Item
+                          id="low"
+                          textValue="low"
+                          className="text-green-600"
+                        >
+                          {tCommon("priority.low")}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </form>
+              </Modal.Heading>
+            </Modal.Body>
+            <ModalFooter>
+              <Button slot="close" variant="secondary">
+                {tCommon("cancel")}
+              </Button>
+              <Button type="submit" form="add-task-form" variant="primary">
+                {t("submit")}
+              </Button>
+            </ModalFooter>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </>
+  );
+}
+</file>
+
+<file path="components/tasks/TaskModal.tsx">
+"use client";
+
+import { Button, Modal } from "@heroui/react";
+import { useTranslations } from "next-intl";
+
+interface TaskModalProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  name: string;
+  description?: string | null;
+  priority?: string | null;
+}
+
+export default function TaskModal({
+  isOpen,
+  onOpenChange,
+  name,
+  description,
+  priority,
+}: TaskModalProps) {
+  const t = useTranslations("TaskModal");
+  const tCommon = useTranslations("Common");
+
+  return (
+    <Modal.Backdrop
+      className="backdrop-blur-sm"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
+      <Modal.Container>
+        <Modal.Dialog className="sm:max-w-md">
+          <Modal.CloseTrigger />
+          <Modal.Header>
+            <Modal.Heading>{name}</Modal.Heading>
+          </Modal.Header>
+
+          <Modal.Body className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs text-default-400">{t("priority")}</p>
+              <p className="text-sm">
+                {priority ? tCommon(`priority.${priority}`) : t("noPriority")}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-default-400">{t("description")}</p>
+              <p className="text-sm">{description || t("noDescription")}</p>
+            </div>
+          </Modal.Body>
+
+          <Modal.Footer>
+            <Button slot="close" variant="secondary">
+              {t("close")}
+            </Button>
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
+  );
+}
+</file>
+
+<file path="hooks/useAuth.ts">
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
+
+export const useAuth = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setErrorMsg("");
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
+      return console.log("usuario no existe");
+    } else {
+      router.push("/");
+      return console.log("usuario logueado:", data.user.email);
+    }
+  };
+
+  return {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    loading,
+    setLoading,
+    errorMsg,
+    setErrorMsg,
+    handleLogin,
+  };
+};
+</file>
+
+<file path="app/(auth)/login/page.tsx">
+"use client";
+import { Button } from "@heroui/react";
+import { useTranslations } from "next-intl";
+import { useAuth } from "@/hooks/useAuth";
+
+export default function Login() {
+  const t = useTranslations("LoginPage");
+
+  const { email, setEmail, password, setPassword, handleLogin } = useAuth();
+
+  return (
+    <div className="">
+      <form
+        className="flex flex-col items-center gap-5 p-5"
+        onSubmit={handleLogin}
+      >
+        <div>
+          <input
+            type="text"
+            title={t("email")}
+            className="bg-white text-black"
+            placeholder={t("email")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div>
+          <input
+            type="password"
+            title={t("password")}
+            className="bg-white text-black"
+            placeholder={t("password")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <Button type="submit">{t("submit")}</Button>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="components/kanban/KanbanBoard.tsx">
+"use client";
+import { DragDropProvider } from "@dnd-kit/react";
+import { ReactNode } from "react";
+import { updateTaskStatus } from "@/lib/actions";
+
+interface Props {
+  children: ReactNode;
+  projectId: string;
+}
+
+export default function KanbanBoard({ children, projectId }: Props) {
+  return (
+    <DragDropProvider
+      onDragEnd={async (event) => {
+        const { source, target } = event.operation;
+
+        if (event.canceled || !source || !target) return;
+
+        const newState = target.id === "nostate" ? null : String(target.id);
+        await updateTaskStatus(String(source.id), newState, projectId);
+      }}
+    >
+      {children}
+    </DragDropProvider>
+  );
+}
+</file>
+
+<file path="components/tasks/CreateTaskForm.tsx">
+"use client";
+
+import { useState } from "react";
+import { Selection } from "@heroui/react";
+import SelectParticipants from "@/components/projects/SelectParticipants";
+
+export default function CreateTaskForm() {
+  const [selected, setSelected] = useState<Selection>(new Set([]));
+
+  return (
+    <form>
+      <input type="text" className="bg-amber-100" placeholder="tarea" />
+
+      <input type="text" className="bg-amber-100" placeholder="estado" />
+
+      <SelectParticipants selected={selected} setSelected={setSelected} />
+    </form>
+  );
+}
+</file>
+
+<file path="components/tasks/TaskCard.tsx">
+"use client";
+import {
+  Button,
+  Card,
+  Dropdown,
+  Header,
+  Label,
+  Separator,
+} from "@heroui/react";
+import { EllipsisVertical, Eye, TrashBin } from "@gravity-ui/icons";
+import { useDraggable } from "@dnd-kit/react";
+import { useTranslations } from "next-intl";
+import TaskModal from "./TaskModal";
+import { useOverlayState } from "@heroui/react";
+
+interface Props {
+  id: string;
+  name: string;
+  priority?: string | null;
+  description?: string | null;
+  onDelete: () => Promise<void>;
+  onChangePriority: (priority: string) => Promise<void>;
+}
+
+const priorityStyles: Record<string, string> = {
+  high: "bg-red-500/20 backdrop-blur-xs border-red-500",
+  medium: "bg-orange-400/20 backdrop-blur-xs border-orange-400",
+  low: "bg-green-500/20 backdrop-blur-xs border-green-500",
+};
+
+const priorityOptions = [
+  { id: "high", label: "High" },
+  { id: "medium", label: "Medium" },
+  { id: "low", label: "Low" },
+];
+
+const priorityIds = ["high", "medium", "low"] as const;
+
+export default function TaskCard({
+  id,
+  name,
+  priority,
+  description,
+  onDelete,
+  onChangePriority,
+}: Props) {
+  const t = useTranslations("TaskCard");
+  const tCommon = useTranslations("Common");
+
+  const { ref } = useDraggable({ id });
+  const state = useOverlayState();
+
+  const handleAction = (key: React.Key) => {
+    if (key === "view") state.open();
+    else if (key === "delete") onDelete();
+    else onChangePriority(String(key));
+  };
+
+  return (
+    <>
+      <div
+        ref={ref}
+        className="w-44 max-w-full cursor-grab active:cursor-grabbing"
+      >
+        <Card
+          variant="secondary"
+          className={`p-2 ${priorityStyles[priority ?? ""] ?? ""} shadow-md`}
+        >
+          <Card.Content className="flex flex-row items-center justify-between gap-1">
+            <p className="min-w-0 flex-1 truncate pl-1 text-sm">{name}</p>
+
+            <Dropdown>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-6 min-w-0 bg-transparent"
+                aria-label={t("optionsAria", { name })}
+              >
+                <EllipsisVertical className="size-4" />
+              </Button>
+
+              <Dropdown.Popover>
+                <Dropdown.Menu onAction={handleAction}>
+                  <Dropdown.Section>
+                    <Header>{t("taskSection")}</Header>
+                    <Dropdown.Item id="view" textValue={t("view")}>
+                      <Eye />
+                      {t("view")}
+                    </Dropdown.Item>
+                  </Dropdown.Section>
+                  <Dropdown.Section>
+                    <Header>{t("prioritySection")}</Header>
+                    {priorityIds.map((id) => (
+                      <Dropdown.Item
+                        key={id}
+                        id={id}
+                        textValue={tCommon(`priority.${id}`)}
+                      >
+                        <Label>{tCommon(`priority.${id}`)}</Label>
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Section>
+                  <Separator />
+                  <Dropdown.Item
+                    id="delete"
+                    textValue={t("delete")}
+                    variant="danger"
+                  >
+                    <TrashBin className="size-4 text-red-500" />
+                    <Label>{t("delete")}</Label>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </Card.Content>
+        </Card>
+      </div>
+
+      <TaskModal
+        isOpen={state.isOpen}
+        onOpenChange={state.setOpen}
+        name={name}
+        description={description}
+        priority={priority}
+      />
+    </>
+  );
+}
+</file>
+
+<file path="components/LanguageSelector.tsx">
+"use client";
+
+import { Button } from "@heroui/react";
+import { useRouter } from "next/navigation";
+import { setLocale } from "@/lib/actions";
+import { Label, ListBox, Select } from "@heroui/react";
+
+export default function LanguageSelector() {
+  const router = useRouter();
+
+  const change = async (locale: "es" | "en") => {
+    await setLocale(locale);
+    router.refresh();
+  };
+
+  return (
+    <Select className="w-auto" placeholder="Language">
+      <Select.Trigger className="bg-accent-hoverx">
+        <Select.Value />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          <ListBox.Item
+            id="florida"
+            textValue="Florida"
+            onPress={() => change("en")}
+          >
+            English
+          </ListBox.Item>
+          <ListBox.Item
+            id="delaware"
+            textValue="Delaware"
+            onPress={() => change("es")}
+          >
+            Español
+          </ListBox.Item>
+        </ListBox>
+      </Select.Popover>
+    </Select>
+  );
+}
+</file>
+
+<file path="hooks/useFriendships.ts">
+import { supabase } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/helpers/currentUser";
+import { Friendship } from "@/types/friendship";
+import { User } from "@/types/user";
+import { useState } from "react";
+
+export async function Friendships() {
+  const currentUser = await getCurrentUser();
+  const currentUserId = currentUser.user?.id;
+
+  if (!currentUserId) return { friendships: [] };
+
+  const { data, error } = await supabase
+    .from("friendships")
+    .select(
+      `
+      id,
+      status,
+      sender:profiles!sender_id(id, email),
+      receiver:profiles!receiver_id(id, email)
+    `,
+    )
+    .eq("status", "accepted")
+    .or(`sender_id.eq.${currentUserId}, receiver_id.eq.${currentUserId}`);
+
+  if (error) {
+    console.error("Ha habido un error:", error.message);
+    return { friendships: [] };
+  }
+
+  ///________________________________________________________________________________
+
+  const rows = data as unknown as Friendship[];
+
+  const friendshipsList: User[] = rows.map((row) => {
+    const isSender = row.sender.id === currentUserId;
+    const friendData = isSender ? row.receiver : row.sender;
+    const friendInitial = friendData.email.charAt(0).toUpperCase();
+
+    return {
+      id: friendData.id,
+      email: friendData.email,
+      initial: friendInitial,
+      name: friendData.email,
+    };
+  });
+
+  return { friendships: friendshipsList };
+}
+</file>
+
+<file path="i18n/request.ts">
+import { getRequestConfig } from "next-intl/server";
+import { cookies } from "next/headers";
+
+export default getRequestConfig(async () => {
+  const store = await cookies();
+  const locale = store.get("locale")?.value ?? "es";
+
+  return {
+    locale,
+    messages: (await import(`../messages/${locale}.json`)).default,
+  };
+});
+</file>
+
+<file path="lib/supabase/client.ts">
+import { createBrowserClient } from "@supabase/ssr";
+
+export const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+</file>
+
+<file path="lib/supabase/server.ts">
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+export async function createClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          } catch {}
+        },
+      },
+    },
+  );
+}
+</file>
+
+<file path="messages/en.json">
+{
+  "Common": {
+    "cancel": "Cancel",
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
+  },
+  "DashboardLayout": {
+    "appName": "Board",
+    "workspace": "WORKSPACE",
+    "login": "Log in",
+    "notificationsAria": "Notifications",
+    "friendRequestsTitle": "Friend requests",
+    "manageConnections": "Manage your connections",
+    "unknownUser": "Unknown user",
+    "invitationDescription": "Sent you a friend request",
+    "allCaughtUp": "All caught up",
+    "noPendingRequests": "You have no pending requests."
+  },
+  "HomePage": {
+    "heroTitle": "Organize your projects without losing track",
+    "heroSubtitle": "Boards, tasks and team in one place. Invite your teammates and move forward together.",
+    "login": "Log in",
+    "chipKanban": "Kanban boards",
+    "chipInvite": "Invite your team",
+    "chipAllInOne": "Everything in one place",
+    "yourProjects": "Your projects",
+    "unknownUser": "Unknown user",
+    "emptyProjects": "You don't have any projects yet. Create your first one to get started!"
+  },
+  "FriendsModal": {
+    "button": "Friends",
+    "title": "Your friends",
+    "empty": "You haven't added any friends yet",
+    "deleteAria": "Remove friend",
+    "errors": {
+      "loadFailed": "Your friends could not be loaded",
+      "deleteFailed": "The friendship could not be removed"
+    }
+  },
+  "InviteModal": {
+    "button": "Invite",
+    "title": "Invite a user",
+    "emailLabel": "User's email",
+    "emailPlaceholder": "example@mail.com",
+    "submit": "Send invitation",
+    "errors": {
+      "selfInvite": "You can't invite yourself",
+      "userNotFound": "No user was found with that email",
+      "inviteFailed": "Something went wrong while inviting the user"
+    }
+  },
+  "CreateProjectModal": {
+    "button": "New project",
+    "title": "Create project",
+    "nameLabel": "Project name",
+    "descriptionLabel": "Description",
+    "participantsLabel": "Participants",
+    "submit": "Create project",
+    "errors": {
+      "saveFailed": "Error saving the project to the database."
+    }
+  },
+  "AddTaskModal": {
+    "button": "Add task",
+    "title": "Add task",
+    "nameAria": "Task name",
+    "namePlaceholder": "Task name",
+    "descriptionAria": "Task description",
+    "descriptionPlaceholder": "Task description",
+    "priorityLabel": "Priority",
+    "priorityPlaceholder": "Priority",
+    "submit": "Add task"
+  },
+  "AddStateModal": {
+    "button": "Add state",
+    "title": "Add state",
+    "nameAria": "State name",
+    "namePlaceholder": "State name",
+    "submit": "Add state"
+  },
+  "AddParticipantModal": {
+    "button": "Add participant",
+    "title": "Add participants",
+    "submit": "Add participants"
+  },
+  "ProjectPage": {
+    "participants": "Participants",
+    "admin": "admin",
+    "deleteProject": "Delete project"
+  },
+  "ProjectCard": {
+    "noDescription": "This project doesn't have a description yet.",
+    "createdBy": "Created by",
+    "project": "Project"
+  },
+  "LogoutButton": {
+    "button": "Log out"
+  },
+  "SelectParticipants": {
+    "ariaLabel": "Users"
+  },
+  "InvitationCard": {
+    "accept": "Accept",
+    "decline": "Decline"
+  },
+  "TaskCard": {
+    "optionsAria": "Options for task {name}",
+    "taskSection": "Task",
+    "view": "View task",
+    "prioritySection": "Priority",
+    "delete": "Delete task"
+  },
+  "LoginPage": {
+    "email": "Email",
+    "password": "Password",
+    "submit": "Log in"
+  },
+  "TaskModal": {
+    "priority": "Priority",
+    "noPriority": "No priority",
+    "description": "Description",
+    "noDescription": "This task has no description.",
+    "close": "Close"
+  }
+}
+</file>
+
+<file path="messages/es.json">
+{
+  "Common": {
+    "cancel": "Cancelar",
+    "priority": {
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja"
+    }
+  },
+  "DashboardLayout": {
+    "appName": "Tablero",
+    "workspace": "ESPACIO DE TRABAJO",
+    "login": "Iniciar sesión",
+    "notificationsAria": "Notificaciones",
+    "friendRequestsTitle": "Solicitudes de amistad",
+    "manageConnections": "Gestiona tus conexiones",
+    "unknownUser": "Usuario desconocido",
+    "invitationDescription": "Te ha enviado una solicitud de amistad",
+    "allCaughtUp": "Todo al día",
+    "noPendingRequests": "No tienes solicitudes pendientes."
+  },
+  "HomePage": {
+    "heroTitle": "Organiza tus proyectos sin perder el hilo",
+    "heroSubtitle": "Tableros, tareas y equipo en un solo sitio. Invita a tus compañeros y avanza junto a ellos.",
+    "login": "Iniciar sesión",
+    "chipKanban": "Tableros Kanban",
+    "chipInvite": "Invita a tu equipo",
+    "chipAllInOne": "Todo en un solo lugar",
+    "yourProjects": "Tus proyectos",
+    "unknownUser": "Usuario desconocido",
+    "emptyProjects": "Aún no tienes proyectos. ¡Crea el primero para empezar!"
+  },
+  "FriendsModal": {
+    "button": "Amigos",
+    "title": "Tus amigos",
+    "empty": "Aún no tienes amigos añadidos",
+    "deleteAria": "Eliminar amigo",
+    "errors": {
+      "loadFailed": "No se han podido cargar tus amigos",
+      "deleteFailed": "No se ha podido eliminar la amistad"
+    }
+  },
+  "InviteModal": {
+    "button": "Invitar",
+    "title": "Invitar a un usuario",
+    "emailLabel": "Email del usuario",
+    "emailPlaceholder": "ejemplo@correo.com",
+    "submit": "Enviar invitación",
+    "errors": {
+      "selfInvite": "No puedes invitarte a ti mismo",
+      "userNotFound": "No se ha encontrado ningún usuario con ese email",
+      "inviteFailed": "Algo ha salido mal invitando al usuario"
+    }
+  },
+  "CreateProjectModal": {
+    "button": "Nuevo proyecto",
+    "title": "Crear proyecto",
+    "nameLabel": "Nombre del proyecto",
+    "descriptionLabel": "Descripción",
+    "participantsLabel": "Participantes",
+    "submit": "Crear proyecto",
+    "errors": {
+      "saveFailed": "Error al guardar el proyecto en la base de datos."
+    }
+  },
+  "AddTaskModal": {
+    "button": "Añadir tarea",
+    "title": "Añadir tarea",
+    "nameAria": "Nombre de la tarea",
+    "namePlaceholder": "Nombre de la tarea",
+    "descriptionAria": "Descripción de la tarea",
+    "descriptionPlaceholder": "Descripción de la tarea",
+    "priorityLabel": "Prioridad",
+    "priorityPlaceholder": "Prioridad",
+    "submit": "Añadir tarea"
+  },
+  "AddStateModal": {
+    "button": "Añadir estado",
+    "title": "Añadir estado",
+    "nameAria": "Nombre del estado",
+    "namePlaceholder": "Nombre del estado",
+    "submit": "Añadir estado"
+  },
+  "AddParticipantModal": {
+    "button": "Añadir participante",
+    "title": "Añadir participantes",
+    "submit": "Añadir participantes"
+  },
+  "ProjectPage": {
+    "participants": "Participantes",
+    "admin": "admin",
+    "deleteProject": "Eliminar proyecto"
+  },
+  "ProjectCard": {
+    "noDescription": "Este proyecto todavía no tiene descripción.",
+    "createdBy": "Creado por",
+    "project": "Proyecto"
+  },
+  "LogoutButton": {
+    "button": "Cerrar sesión"
+  },
+  "SelectParticipants": {
+    "ariaLabel": "Usuarios"
+  },
+  "InvitationCard": {
+    "accept": "Aceptar",
+    "decline": "Rechazar"
+  },
+  "TaskCard": {
+    "optionsAria": "Opciones de la tarea {name}",
+    "taskSection": "Tarea",
+    "view": "Ver tarea",
+    "prioritySection": "Prioridad",
+    "delete": "Eliminar tarea"
+  },
+  "LoginPage": {
+    "email": "Email",
+    "password": "Contraseña",
+    "submit": "Entrar"
+  },
+  "TaskModal": {
+    "priority": "Prioridad",
+    "noPriority": "Sin prioridad",
+    "description": "Descripción",
+    "noDescription": "Esta tarea no tiene descripción.",
+    "close": "Cerrar"
+  }
+}
+</file>
+
+<file path="supabase/.temp/cli-latest">
+v2.117.0
+</file>
+
+<file path="supabase/.temp/gotrue-version">
+v2.197.0
+</file>
+
+<file path="supabase/.temp/linked-project.json">
+{"ref":"gtopwwozspmuafynqgbu","name":"dev-tracker","organization_id":"dpdtdllamyidpigvbkmb","organization_slug":"dpdtdllamyidpigvbkmb"}
+</file>
+
+<file path="supabase/.temp/pooler-url">
+postgresql://postgres.gtopwwozspmuafynqgbu@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+</file>
+
+<file path="supabase/.temp/postgres-version">
+17.6.1.155
+</file>
+
+<file path="supabase/.temp/project-ref">
+gtopwwozspmuafynqgbu
+</file>
+
+<file path="supabase/.temp/rest-version">
+v14.5
+</file>
+
+<file path="supabase/.temp/storage-migration">
+objects-null-version-index
+</file>
+
+<file path="supabase/.temp/storage-version">
+v1.73.1
+</file>
+
+<file path="supabase/migrations/20260916110246_remote_schema.sql">
+
+</file>
+
+<file path="supabase/migrations/20260916110700_remote_schema.sql">
+drop extension if exists "pg_net";
+
+
+  create table "public"."Friendships" (
+    "id" bigint generated by default as identity not null,
+    "senderId" uuid not null,
+    "receiverId" uuid,
+    "created_at" timestamp with time zone not null default now(),
+    "status" text
+      );
+
+
+alter table "public"."Friendships" enable row level security;
+
+
+  create table "public"."ProjectMembers" (
+    "id" uuid not null default gen_random_uuid(),
+    "userId" uuid not null,
+    "projectId" uuid not null
+      );
+
+
+alter table "public"."ProjectMembers" enable row level security;
+
+
+  create table "public"."Projects" (
+    "id" uuid not null default gen_random_uuid(),
+    "name" text not null,
+    "description" text not null,
+    "ownerId" uuid not null
+      );
+
+
+alter table "public"."Projects" enable row level security;
+
+
+  create table "public"."Tasks" (
+    "id" uuid not null default gen_random_uuid(),
+    "title" text not null,
+    "completed" boolean not null default false,
+    "projectId" uuid not null
+      );
+
+
+alter table "public"."Tasks" enable row level security;
+
+
+  create table "public"."profiles" (
+    "id" uuid not null,
+    "email" text not null
+      );
+
+
+alter table "public"."profiles" enable row level security;
+
+CREATE UNIQUE INDEX "Friendships_pkey" ON public."Friendships" USING btree (id);
+
+CREATE UNIQUE INDEX "ProjectMembers_pkey" ON public."ProjectMembers" USING btree (id);
+
+CREATE UNIQUE INDEX "Projects_pkey" ON public."Projects" USING btree (id);
+
+CREATE UNIQUE INDEX "Tasks_pkey" ON public."Tasks" USING btree (id);
+
+CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id);
+
+alter table "public"."Friendships" add constraint "Friendships_pkey" PRIMARY KEY using index "Friendships_pkey";
+
+alter table "public"."ProjectMembers" add constraint "ProjectMembers_pkey" PRIMARY KEY using index "ProjectMembers_pkey";
+
+alter table "public"."Projects" add constraint "Projects_pkey" PRIMARY KEY using index "Projects_pkey";
+
+alter table "public"."Tasks" add constraint "Tasks_pkey" PRIMARY KEY using index "Tasks_pkey";
+
+alter table "public"."profiles" add constraint "profiles_pkey" PRIMARY KEY using index "profiles_pkey";
+
+alter table "public"."Friendships" add constraint "Friendships_receiverId_fkey" FOREIGN KEY ("receiverId") REFERENCES public.profiles(id) ON UPDATE CASCADE not valid;
+
+alter table "public"."Friendships" validate constraint "Friendships_receiverId_fkey";
+
+alter table "public"."Friendships" add constraint "Friendships_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES public.profiles(id) ON UPDATE CASCADE not valid;
+
+alter table "public"."Friendships" validate constraint "Friendships_senderId_fkey";
+
+alter table "public"."ProjectMembers" add constraint "ProjectMembers_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES public."Projects"(id) ON UPDATE CASCADE ON DELETE RESTRICT not valid;
+
+alter table "public"."ProjectMembers" validate constraint "ProjectMembers_projectId_fkey";
+
+alter table "public"."Projects" add constraint "Projects_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES public.profiles(id) not valid;
+
+alter table "public"."Projects" validate constraint "Projects_ownerId_fkey";
+
+alter table "public"."Tasks" add constraint "Tasks_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES public."Projects"(id) ON UPDATE CASCADE ON DELETE RESTRICT not valid;
+
+alter table "public"."Tasks" validate constraint "Tasks_projectId_fkey";
+
+alter table "public"."profiles" add constraint "profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."profiles" validate constraint "profiles_id_fkey";
+
+set check_function_bodies = off;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+begin
+  insert into public.profiles (id, email)
+  values (new.id, new.email);
+  return new;
+end;
+$function$
+;
+
+grant delete on table "public"."Friendships" to "anon";
+
+grant insert on table "public"."Friendships" to "anon";
+
+grant select on table "public"."Friendships" to "anon";
+
+grant update on table "public"."Friendships" to "anon";
+
+grant delete on table "public"."Friendships" to "authenticated";
+
+grant insert on table "public"."Friendships" to "authenticated";
+
+grant references on table "public"."Friendships" to "authenticated";
+
+grant select on table "public"."Friendships" to "authenticated";
+
+grant trigger on table "public"."Friendships" to "authenticated";
+
+grant truncate on table "public"."Friendships" to "authenticated";
+
+grant update on table "public"."Friendships" to "authenticated";
+
+grant delete on table "public"."Friendships" to "service_role";
+
+grant insert on table "public"."Friendships" to "service_role";
+
+grant select on table "public"."Friendships" to "service_role";
+
+grant update on table "public"."Friendships" to "service_role";
+
+grant delete on table "public"."ProjectMembers" to "authenticated";
+
+grant insert on table "public"."ProjectMembers" to "authenticated";
+
+grant references on table "public"."ProjectMembers" to "authenticated";
+
+grant select on table "public"."ProjectMembers" to "authenticated";
+
+grant trigger on table "public"."ProjectMembers" to "authenticated";
+
+grant truncate on table "public"."ProjectMembers" to "authenticated";
+
+grant update on table "public"."ProjectMembers" to "authenticated";
+
+grant delete on table "public"."Projects" to "authenticated";
+
+grant insert on table "public"."Projects" to "authenticated";
+
+grant references on table "public"."Projects" to "authenticated";
+
+grant select on table "public"."Projects" to "authenticated";
+
+grant trigger on table "public"."Projects" to "authenticated";
+
+grant truncate on table "public"."Projects" to "authenticated";
+
+grant update on table "public"."Projects" to "authenticated";
+
+grant delete on table "public"."Tasks" to "authenticated";
+
+grant insert on table "public"."Tasks" to "authenticated";
+
+grant references on table "public"."Tasks" to "authenticated";
+
+grant select on table "public"."Tasks" to "authenticated";
+
+grant trigger on table "public"."Tasks" to "authenticated";
+
+grant truncate on table "public"."Tasks" to "authenticated";
+
+grant update on table "public"."Tasks" to "authenticated";
+
+grant delete on table "public"."profiles" to "authenticated";
+
+grant insert on table "public"."profiles" to "authenticated";
+
+grant references on table "public"."profiles" to "authenticated";
+
+grant select on table "public"."profiles" to "authenticated";
+
+grant trigger on table "public"."profiles" to "authenticated";
+
+grant truncate on table "public"."profiles" to "authenticated";
+
+grant update on table "public"."profiles" to "authenticated";
+
+
+  create policy "Allow updates"
+  on "public"."Friendships"
+  as permissive
+  for update
+  to public
+using ((auth.uid() = "receiverId"))
+with check ((auth.uid() = "receiverId"));
+
+
+
+  create policy "Enable delete for users based on user_id"
+  on "public"."Friendships"
+  as permissive
+  for delete
+  to public
+using (((auth.uid() = "senderId") OR (auth.uid() = "receiverId")));
+
+
+
+  create policy "Enable insert for users based on senderId"
+  on "public"."Friendships"
+  as permissive
+  for insert
+  to public
+with check ((( SELECT auth.uid() AS uid) = "senderId"));
+
+
+
+  create policy "Enable read access for all users"
+  on "public"."Friendships"
+  as permissive
+  for select
+  to public
+using (true);
+
+
+
+  create policy "Enable insert for authenticated users only"
+  on "public"."ProjectMembers"
+  as permissive
+  for insert
+  to authenticated
+with check (true);
+
+
+
+  create policy "Enable insert for authenticated users only"
+  on "public"."Projects"
+  as permissive
+  for insert
+  to authenticated
+with check (true);
+
+
+
+  create policy "Enable insert for users based on user_id"
+  on "public"."Projects"
+  as permissive
+  for insert
+  to public
+with check ((( SELECT auth.uid() AS uid) = "ownerId"));
+
+
+
+  create policy "Enable read access for all users"
+  on "public"."Projects"
+  as permissive
+  for select
+  to public
+using (true);
+
+
+
+  create policy "Enable insert for authenticated users only"
+  on "public"."Tasks"
+  as permissive
+  for insert
+  to authenticated
+with check (true);
+
+
+
+  create policy "Cualquiera puede leer perfiles"
+  on "public"."profiles"
+  as permissive
+  for select
+  to public
+using (true);
+
+
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+</file>
+
+<file path="types/friendship.ts">
+import { Timestamp } from "next/dist/server/lib/cache-handlers/types";
+import { User } from "./user";
+
+export interface Friendship {
+  readonly id: string;
+  sender: User;
+  receiver: User;
+  status: string;
+  created_at: Timestamp;
+}
+</file>
+
+<file path="AGENTS.md">
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+</file>
+
+<file path="CLAUDE.md">
+@AGENTS.md
+</file>
+
+<file path="data.sql">
+
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="postcss.config.mjs">
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
+<file path="roles.sql">
+
+</file>
+
+<file path="schema.sql">
+
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="app/(dashboard)/friendship-area/page.tsx">
+"use client";
+import { useState } from "react";
+import { Button } from "@heroui/react";
+import { useTranslations } from "next-intl";
+import { supabase } from "@/lib/supabase/client";
+
+export default function Friendships() {
+  const t = useTranslations("InviteModal");
+
+  const [searchEmail, setSearchEmail] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSearchUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setIsLoading(true);
+
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+
+    if (currentUser?.email === searchEmail) {
+      setErrorMessage(t("errors.selfInvite"));
+      setIsLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("email", searchEmail)
+      .single();
+
+    if (data) {
+      const { error: insertError } = await supabase.from("friendships").insert({
+        senderId: currentUser?.id,
+        receiverId: data.id,
+        status: "pending",
+      });
+
+      if (insertError) {
+        console.log("Error al crear invitación:", insertError.message);
+        setErrorMessage(t("errors.inviteFailed"));
+      }
+    } else {
+      console.log(error);
+      setErrorMessage(t("errors.userNotFound"));
+    }
+
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="flex flex-col p-10">
+      <form
+        className="flex flex-col items-center gap-5 p-5"
+        onSubmit={handleSearchUser}
+      >
+        <input
+          type="text"
+          className="bg-amber-50 text-black"
+          placeholder={t("emailPlaceholder")}
+          value={searchEmail}
+          onChange={(e) => setSearchEmail(e.target.value)}
+        />
+        <Button type="submit" isDisabled={isLoading}>
+          {t("submit")}
+        </Button>
+        {errorMessage && <p className="text-danger">{errorMessage}</p>}
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="app/providers/providers.tsx">
+"use client";
+
+import { ThemeProvider } from "next-themes";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem
+      disableTransitionOnChange
+    >
+      {children}
+    </ThemeProvider>
+  );
+}
+</file>
+
+<file path="components/kanban/KanbanColumn.tsx">
+"use client";
+
+import { useDroppable } from "@dnd-kit/react";
+import { Children, ReactNode } from "react";
+import { Chip } from "@heroui/react";
+
+interface Props {
+  id: string;
+  name: string;
+  category?: string;
+  layout?: "column" | "row";
+  className?: string;
+  children?: ReactNode;
+}
+
+const borderByCategory: Record<string, string> = {
+  todo: "border-zinc-400",
+  in_progress: "border-orange-400",
+  done: "border-green-500",
+};
+
+const chipColorByCategory: Record<string, "default" | "warning" | "success"> = {
+  todo: "default",
+  in_progress: "warning",
+  done: "success",
+};
+
+export default function KanbanColumn({
+  id,
+  name,
+  category = "todo",
+  layout = "column",
+  className,
+  children,
+}: Props) {
+  const { ref } = useDroppable({ id });
+  const count = Children.count(children);
+
+  return (
+    <div className={`w-full min-w-0 ${className ?? ""}`}>
+      {name && (
+        <div className="mb-2 flex items-center justify-center gap-2">
+          <h2 className="text-sm font-medium sm:text-base">{name}</h2>
+          <Chip
+            size="sm"
+            variant="soft"
+            color={chipColorByCategory[category] ?? "default"}
+          >
+            {count}
+          </Chip>
+        </div>
+      )}
+
+      <div
+        ref={ref}
+        className={`flex min-h-32 gap-3 rounded-2xl border-2 border-zinc-700 p-3 sm:min-h-40 sm:p-4 ${
+          layout === "row"
+            ? "flex-col sm:flex-row sm:flex-wrap sm:items-start"
+            : "flex-col"
+        } ${borderByCategory[category]}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="helpers/currentUser.ts">
+import { supabase } from "@/lib/supabase/client";
+
+export async function getCurrentUser() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) {
+    console.error("Error obteniendo el usuario:", error.message);
+
+    return { user: null, error };
+  }
+
+  const currentUserId = user?.id;
+
+  return { user, error: null, currentUserId };
+}
+</file>
+
+<file path="types/projectMember.ts">
+export interface ProjectMemberRow {
+  user_id: string;
+  profiles: {
+    email: string;
+  };
+}
+</file>
+
+<file path="types/task.ts">
+export interface Task {
+  readonly id: string;
+  name: string;
+  completed: boolean;
+}
+</file>
+
+<file path="types/user.ts">
+export interface User {
+  readonly id: string;
+  email: string;
+  name: string;
+  initial: string;
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/app/generated/prisma
+</file>
+
+<file path="app/(dashboard)/layout.tsx">
+import { Badge, Button, Popover } from "@heroui/react";
+import { Bell, LayoutColumns } from "@gravity-ui/icons";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import InvitationCard from "@/components/friends/InvitationCard";
+import InviteModal from "@/components/friends/InviteModal";
+import LogoutButton from "@/components/auth/LogoutButton";
+import FriendsModal from "@/components/friends/FriendsModal";
+import LanguageSelector from "@/components/LanguageSelector";
+
+import { getTranslations } from "next-intl/server";
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const t = await getTranslations("DashboardLayout");
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, email");
+
+  const { data: invitations } = await supabase
+    .from("friendships")
+    .select("id, sender_id, status")
+    .eq("receiver_id", user?.id)
+    .eq("status", "pending");
+
+  const hasInvitations = !!invitations && invitations.length > 0;
+
+  return (
+    <>
+      <header className="border-b border-default-200 bg-background/70 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-accent/10 text-accent rounded-lg p-1.5">
+              <LayoutColumns className="size-4" />
+            </div>
+            <span className="font-semibold">{t("workspace")}</span>
+          </div>
+
+          {user ? (
+            <div className="flex items-center gap-2">
+              <FriendsModal />
+              <InviteModal />
+              <Badge.Anchor>
+                <Popover>
+                  <Popover.Trigger>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      isIconOnly
+                      aria-label={t("notificationsAria")}
+                    >
+                      <Bell className="size-4" />
+                    </Button>
+                  </Popover.Trigger>
+                  <Popover.Content className="w-80">
+                    <Popover.Dialog>
+                      <Popover.Heading>
+                        {t("friendRequestsTitle")}
+                      </Popover.Heading>
+                      <div className="flex flex-col gap-3 mt-3 max-h-80 overflow-y-auto">
+                        {hasInvitations ? (
+                          invitations!.map((invitation) => {
+                            const sender = profiles?.find(
+                              (p) => p.id === invitation.sender_id,
+                            );
+                            return (
+                              <InvitationCard
+                                key={invitation.id}
+                                invitationId={invitation.id}
+                                userSenderEmail={
+                                  sender?.email || t("unknownUser")
+                                }
+                                description={t("invitationDescription")}
+                              />
+                            );
+                          })
+                        ) : (
+                          <p className="text-sm text-default-500 text-center py-6">
+                            {t("noPendingRequests")}
+                          </p>
+                        )}
+                      </div>
+                    </Popover.Dialog>
+                  </Popover.Content>
+                </Popover>
+                {hasInvitations && (
+                  <Badge color="danger" size="sm">
+                    {invitations!.length}
+                  </Badge>
+                )}
+              </Badge.Anchor>
+              <LogoutButton />
+            </div>
+          ) : (
+            <Link href="/login">
+              <Button variant="primary" size="sm">
+                {t("login")}
+              </Button>
+            </Link>
+          )}
+          <LanguageSelector />
+        </div>
+      </header>
+
+      {children}
+    </>
+  );
+}
+</file>
+
+<file path="app/(workspace)/projects/[id]/page.tsx">
+import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import { Avatar, Button, Card, Chip } from "@heroui/react";
+import {
+  deleteProject,
+  projectCreator,
+  projectMembers,
+  getTasks,
+  deleteTask,
+  getStates,
+  changeTaskPriority,
+} from "@/lib/actions";
+import AddTaskModal from "@/components/tasks/AddTaskModal";
+import AddParticipantModal from "@/components/projects/AddParticipantModal";
+import AddStateModal from "@/components/projects/AddStateModal";
+import KanbanBoard from "@/components/kanban/KanbanBoard";
+import KanbanColumn from "@/components/kanban/KanbanColumn";
+import TaskCard from "@/components/tasks/TaskCard";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function ProjectPage({ params }: PageProps) {
+  const t = await getTranslations("ProjectPage");
+
+  const resolvedParams = await params;
+  const projectId = resolvedParams.id;
+
+  const supabase = await createClient();
+
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
+
+  if (error || !project) {
+    notFound();
+  }
+
+  const handleDelete = async () => {
+    "use server";
+    await deleteProject(projectId);
+  };
+
+  const tasks = await getTasks(projectId);
+  const states = await getStates(projectId);
+
+  const projectCreatorEmail = await projectCreator(projectId);
+  const projectMembersEmails = await projectMembers(projectId);
+
+  const handleDeleteTask = async (taskId: string) => {
+    "use server";
+    await deleteTask(taskId, projectId);
+  };
+
+  const handleChangePriority = async (taskId: string, priority: string) => {
+    "use server";
+    await changeTaskPriority(taskId, priority, projectId);
+  };
+
+  const participants = [
+    { email: projectCreatorEmail, isAdmin: true },
+    ...(projectMembersEmails ?? [])
+      .filter((email: string) => email !== projectCreatorEmail)
+      .map((email: string) => ({ email, isAdmin: false })),
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <h1 className="text-center font-bold">{project.name.toUpperCase()}</h1>
+
+      <Card className="flex items-center bg-transparent">
+        <Card.Content className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center [&>*]:w-full sm:[&>*]:w-auto">
+          <AddTaskModal projectId={projectId} />
+          <AddStateModal projectId={projectId} />
+          <AddParticipantModal projectId={projectId} />
+        </Card.Content>
+      </Card>
+
+      <KanbanBoard projectId={projectId}>
+        <div className="flex flex-col gap-6">
+          <div>
+            <KanbanColumn id="nostate" name="" layout="row" className="w-full">
+              {tasks
+                ?.filter((task) => !task.status_id)
+                .map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    id={task.id}
+                    name={task.name}
+                    description={task.description}
+                    onDelete={handleDeleteTask.bind(null, task.id)}
+                    priority={task.priority}
+                    onChangePriority={handleChangePriority.bind(null, task.id)}
+                  />
+                ))}
+            </KanbanColumn>
+          </div>
+
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+            {states?.map((state) => (
+              <KanbanColumn
+                key={state.id}
+                id={state.id}
+                name={state.name}
+                category={state.category}
+                className="min-w-0 flex-1"
+              >
+                {tasks
+                  ?.filter((task) => task.status_id === state.id)
+                  .map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      id={task.id}
+                      name={task.name}
+                      description={task.description}
+                      onDelete={handleDeleteTask.bind(null, task.id)}
+                      priority={task.priority}
+                      onChangePriority={handleChangePriority.bind(
+                        null,
+                        task.id,
+                      )}
+                    />
+                  ))}
+              </KanbanColumn>
+            ))}
+          </div>
+        </div>
+      </KanbanBoard>
+
+      <Card>
+        <Card.Header className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <Card.Description>{t("participants")}</Card.Description>
+          </div>
+        </Card.Header>
+        <Card.Content>
+          <ul className="flex flex-wrap gap-4">
+            {participants.map(({ email, isAdmin }) => (
+              <li key={email} className="flex items-center gap-2">
+                <Avatar size="sm">
+                  <Avatar.Fallback>
+                    {email.slice(0, 2).toUpperCase()}
+                  </Avatar.Fallback>
+                </Avatar>
+
+                {isAdmin && (
+                  <Chip size="sm" color="accent" variant="soft">
+                    {t("admin")}
+                  </Chip>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card.Content>
+      </Card>
+
+      <form action={handleDelete}>
+        <Button variant="ghost" type="submit">
+          {t("deleteProject")}
+        </Button>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="app/(workspace)/layout.tsx">
+import { Badge, Button, Popover } from "@heroui/react";
+import { Bell, LayoutColumns } from "@gravity-ui/icons";
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { createClient } from "@/lib/supabase/server";
+import InvitationCard from "@/components/friends/InvitationCard";
+import InviteModal from "@/components/friends/InviteModal";
+import LogoutButton from "@/components/auth/LogoutButton";
+import FriendsModal from "@/components/friends/FriendsModal";
+import LanguageSelector from "@/components/LanguageSelector";
+import { redirect } from "next/navigation";
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const t = await getTranslations("DashboardLayout");
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, email");
+
+  const { data: invitations } = await supabase
+    .from("Friendships")
+    .select("id, senderId, status")
+    .eq("receiverId", user?.id)
+    .eq("status", "pending");
+
+  const hasInvitations = !!invitations && invitations.length > 0;
+
+  return (
+    <>
+      <header className="sticky top-0 z-50 border-b border-default-200/60 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5 sm:px-8">
+          <Link
+            href="/"
+            className="group flex items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <div className="flex size-9 items-center justify-center rounded-xl bg-accent text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
+              <LayoutColumns className="size-[18px]" />
+            </div>
+
+            <div className="flex flex-col gap-0">
+              <span className="text-[15px] font-semibold tracking-tight">
+                {t("appName")}
+              </span>
+              <span className="text-[11px] font-medium tracking-wide text-default-400">
+                {t("workspace")}
+              </span>
+            </div>
+          </Link>
+
+          {user ? (
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <FriendsModal />
+              <InviteModal />
+
+              <Badge.Anchor>
+                <Popover>
+                  <Popover.Trigger>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      isIconOnly
+                      aria-label={t("notificationsAria")}
+                      className="relative text-default-500 transition-colors hover:text-foreground"
+                    >
+                      <Bell className="size-[18px]" />
+                    </Button>
+                  </Popover.Trigger>
+
+                  <Popover.Content className="w-[min(340px,calc(100vw-2rem))]">
+                    <Popover.Dialog>
+                      <div className="border-b border-default-200 pb-3">
+                        <Popover.Heading>
+                          {t("friendRequestsTitle")}
+                        </Popover.Heading>
+                        <p className="mt-1 text-xs text-default-500">
+                          {t("manageConnections")}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 flex max-h-80 flex-col gap-3 overflow-y-auto">
+                        {hasInvitations ? (
+                          invitations!.map((invitation) => {
+                            const sender = profiles?.find(
+                              (p) => p.id === invitation.senderId,
+                            );
+
+                            return (
+                              <InvitationCard
+                                key={invitation.id}
+                                invitationId={invitation.id}
+                                userSenderEmail={
+                                  sender?.email || t("unknownUser")
+                                }
+                                description={t("invitationDescription")}
+                              />
+                            );
+                          })
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 py-8 text-center">
+                            <div className="flex size-10 items-center justify-center rounded-full bg-default-100">
+                              <Bell className="size-4 text-default-400" />
+                            </div>
+                            <p className="text-sm font-medium">
+                              {t("allCaughtUp")}
+                            </p>
+                            <p className="text-xs text-default-500">
+                              {t("noPendingRequests")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </Popover.Dialog>
+                  </Popover.Content>
+                </Popover>
+
+                {hasInvitations && (
+                  <Badge color="danger" size="sm">
+                    {invitations!.length}
+                  </Badge>
+                )}
+              </Badge.Anchor>
+
+              <div className="mx-1 h-6 w-px bg-default-200/80" />
+
+              <LogoutButton />
+            </div>
+          ) : (
+            <Link href="/login">
+              <Button variant="primary" size="sm" className="font-medium">
+                {t("login")}
+              </Button>
+            </Link>
+          )}
+          <LanguageSelector />
+        </div>
+      </header>
+
+      <main>{children}</main>
+    </>
+  );
+}
+</file>
+
+<file path="app/globals.css">
+@import "tailwindcss";
+@import "@heroui/styles";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+</file>
+
+<file path="types/project.ts">
+import { Task } from "./task";
+
+export interface Project {
+  readonly id: string;
+  name: string;
+  description: string;
+  tasks?: Task[];
+  owner_id?: string;
+}
+
+export type MemberRow = {
+  projects: Project;
+};
+</file>
+
+<file path="lib/actions.ts">
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { Selection } from "@heroui/react";
+import { supabase } from "./supabase/client";
+import { redirect } from "next/navigation";
+import { id } from "zod/locales";
+import { ProjectMemberRow } from "@/types/projectMember";
+import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+
+///____________________________________________________________________________________________________________
+export const createProject = async (
+  projectName: string,
+  description: string,
+  participants: Selection,
+) => {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.error("No hay usuario autenticado");
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("projects")
+    .insert({
+      name: projectName,
+      description: description,
+      owner_id: user.id,
+    })
+    .select("id");
+
+  if (error || !data || data.length === 0) {
+    console.error("Error creating project:", error?.message);
+    return null;
+  }
+
+  const newProjectId = data[0].id;
+
+  let participantIds: string[] = [];
+
+  if (participants === "all") {
+    participantIds = [];
+  } else {
+    participantIds = Array.from(participants) as string[];
+  }
+
+  if (participantIds.length === 0) {
+    console.log("Proyecto creado correctamente (sin participantes)");
+    return data;
+  }
+
+  const uniqueParticipants = new Set([...participantIds, user.id]);
+
+  const rows = Array.from(uniqueParticipants).map((userId) => ({
+    user_id: userId,
+    project_id: newProjectId,
+  }));
+
+  const { error: rowsError } = await supabase
+    .from("project_members")
+    .insert(rows);
+
+  if (rowsError) {
+    console.error("Error adding members:", rowsError.message);
+  }
+
+  console.log("Proyecto creado correctamente con sus participantes");
+
+  return data;
+};
+
+///____________________________________________________________________________________________________________
+export const deleteProject = async (projectId: string) => {
+  console.log("Intentando eliminar proyecto:", projectId);
+
+  const supabaseServer = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabaseServer.auth.getUser();
+
+  if (authError || !user) {
+    console.error("No autorizado o sesión expirada");
+    return { success: false, error: "No autorizado" };
+  }
+
+  const { data: deleteProjectData, error: deleteProjectError } =
+    await supabaseServer.from("projects").delete().eq("id", projectId);
+
+  if (deleteProjectError) {
+    console.log(deleteProjectError.message);
+    console.log("ha habido un problema al eliminar el proyecto");
+    console.error(
+      "DETALLE COMPLETO DEL ERROR:",
+      JSON.stringify(deleteProjectError, null, 2),
+    );
+    return { success: false, error: deleteProjectError.message };
+  }
+
+  revalidatePath("/");
+  redirect("/");
+};
+
+///____________________________________________________________________________________________________________
+export const projectCreator = async (projectId: string) => {
+  const { data: projectCreatorId, error: projectCreatorIdError } =
+    await supabase
+      .from("projects")
+      .select("owner_id")
+      .eq("id", projectId)
+      .single();
+
+  if (projectCreatorIdError) {
+    console.log("ha habido un problema");
+    console.log(projectCreatorIdError);
+  } else {
+    console.log("id del creador extraido con exito");
+  }
+
+  const { data: projectCreatorEmail, error: projectCreatorEmailError } =
+    await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", projectCreatorId?.owner_id)
+      .single();
+
+  if (projectCreatorEmailError) {
+    console.log(projectCreatorEmailError);
+  } else {
+    console.log("email del creador extraido con exito");
+    return projectCreatorEmail.email;
+  }
+};
+
+///____________________________________________________________________________________________________________
+export const projectMembers = async (projectId: string) => {
+  const supabase = await createClient();
+  const { data: membersData, error: membersError } = await supabase
+    .from("project_members")
+    .select("user_id, profiles(email)")
+    .eq("project_id", projectId)
+    .returns<ProjectMemberRow[]>();
+
+  const emails = membersData?.map((member) => member.profiles?.email);
+
+  if (membersError) {
+    console.log(membersError.message);
+  } else {
+    console.log("datos de los participantes extraidos. con exito");
+    return emails;
+  }
+};
+
+///____________________________________________________________________________________________________________
+export const addParticipants = async (projectId: string, userIds: string[]) => {
+  const supabase = await createClient();
+  const rows = userIds.map((userId) => ({
+    user_id: userId,
+    project_id: projectId,
+  }));
+
+  const { data: addParticipantsData, error: addParticipantsError } =
+    await supabase.from("project_members").insert(rows);
+
+  if (addParticipantsError) {
+    console.log("error en los particpantes");
+    console.log(addParticipantsError.message);
+  } else {
+    console.log("participante/s nuevo/s añadido/s con exito");
+  }
+
+  if (addParticipantsError) {
+    if (addParticipantsError.code === "23505") {
+      throw new Error("Alguno de esos usuarios ya es miembro del proyecto");
+    }
+    throw addParticipantsError;
+  }
+};
+
+///____________________________________________________________________________________________________________
+export const getTasks = async (projectId: string) => {
+  const supabase = await createClient();
+
+  const { data: tasksData, error: tasksError } = await supabase
+    .from("tasks")
+    .select("*, states(name, category)")
+    .eq("project_id", projectId);
+
+  if (tasksError) console.error(tasksError.message);
+
+  return tasksData;
+};
+
+///____________________________________________________________________________________________________________
+export const deleteTask = async (taskId: string, projectId: string) => {
+  const supabase = await createClient();
+  const { data: deleteTaskData, error: deleteTaskError } = await supabase
+    .from("tasks")
+    .delete()
+    .eq("id", taskId);
+
+  if (deleteTaskError) return console.error(deleteTaskError.message);
+
+  revalidatePath(`/projects/${projectId}`);
+};
+
+///____________________________________________________________________________________________________________
+export async function updateTaskStatus(
+  taskId: string,
+  statusId: string | null,
+  projectId: string,
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ status_id: statusId })
+    .eq("id", taskId)
+    .select();
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/projects/${projectId}`);
+}
+
+///____________________________________________________________________________________________________________
+export const getStates = async (projectId: string) => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("states")
+    .select("*")
+    .eq("project_id", projectId);
+
+  if (error) console.error(error.message);
+  return data;
+};
+
+///____________________________________________________________________________________________________________
+export const addState = async (projectId: string, stateName: string) => {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("states")
+    .insert({ project_id: projectId, name: stateName });
+
+  if (error) {
+    console.error(error.message);
+  }
+};
+
+///____________________________________________________________________________________________________________
+const VALID_PRIORITIES = ["low", "medium", "high"];
+
+export const changeTaskPriority = async (
+  taskId: string,
+  priority: string,
+  projectId: string,
+) => {
+  if (!VALID_PRIORITIES.includes(priority)) return; // ← validación
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ priority })
+    .eq("id", taskId);
+
+  if (error) {
+    console.error("changeTaskPriority falló:", error.message);
+    return;
+  }
+  revalidatePath(`/projects/${projectId}`);
+};
+
+///____________________________________________________________________________________________________________
+export const setLocale = async (locale: "es" | "en") => {
+  const store = await cookies();
+  store.set("locale", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+};
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const nextConfig: NextConfig = {
+  turbopack: {},
+};
+
+const withNextIntl = createNextIntlPlugin();
+export default withNextIntl(nextConfig);
+</file>
+
+<file path="app/(dashboard)/page.tsx">
+import { Button, Card, Chip } from "@heroui/react";
+import {
+  ArrowRight,
+  FolderOpen,
+  LayoutColumns,
+  Rocket,
+} from "@gravity-ui/icons";
+import Link from "next/link";
+import ProjectCard from "@/components/projects/ProjectCard";
+import { createClient } from "@/lib/supabase/server";
+import { Project, MemberRow } from "@/types/project";
+import CreateProjectModal from "@/components/projects/CreateProjectModal";
+import { getTranslations } from "next-intl/server";
+
+export default async function Home() {
+  const supabase = await createClient();
+  const t = await getTranslations("HomePage");
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: ownedProjects, error: projectsError } = await supabase
+    .from("projects")
+    .select("id, name, description, owner_id")
+    .eq("owner_id", user?.id);
+
+  const { data: memberRows } = await supabase
+    .from("project_members")
+    .select("projects(id, name, description, owner_id)")
+    .eq("user_id", user?.id)
+    .returns<MemberRow[]>();
+
+  const memberProjects = memberRows?.map((row) => row.projects) ?? [];
+
+  const allProjectsMap = new Map();
+  [...(ownedProjects ?? []), ...memberProjects].forEach((p) => {
+    allProjectsMap.set(p.id, p);
+  });
+
+  const projects = Array.from(allProjectsMap.values());
+
+  if (projectsError) {
+    console.log("Error al traer proyectos:", projectsError.message);
+  }
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, email");
+
+  if (profilesError) {
+    console.log("Error al traer perfiles:", profilesError.message);
+  }
+
+  return (
+    <main className="min-h-screen bg-content1/40">
+      {!user ? (
+        <div className="max-w-2xl mx-auto px-6 py-24 flex flex-col items-center text-center">
+          <div className="bg-accent/10 text-accent rounded-full p-5 mb-6">
+            <LayoutColumns className="size-8" />
+          </div>
+
+          <h1 className="text-4xl font-bold tracking-tight mb-4">
+            {t("heroTitle")}
+          </h1>
+          <p className="text-default-500 text-lg mb-8 max-w-md">
+            {t("heroSubtitle")}
+          </p>
+
+          <Link href="/login">
+            <Button variant="primary" size="lg">
+              {t("login")}
+              <ArrowRight className="size-4" />
+            </Button>
+          </Link>
+
+          <div className="flex flex-wrap justify-center gap-2 mt-10">
+            <Chip variant="soft" color="accent">
+              {t("chipKanban")}
+            </Chip>
+            <Chip variant="soft" color="accent">
+              {t("chipInvite")}
+            </Chip>
+            <Chip variant="soft" color="accent">
+              {t("chipAllInOne")}
+            </Chip>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-4xl mx-auto px-6 py-10">
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <FolderOpen className="size-5 text-default-500" />
+                {t("yourProjects")}
+              </h2>
+              <CreateProjectModal />
+            </div>
+
+            {projects.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {projects.map((project: Project) => {
+                  const projectOwner = profiles?.find(
+                    (p) => p.id === project.owner_id,
+                  );
+
+                  return (
+                    <Link href={`/projects/${project.id}`} key={project.id}>
+                      <ProjectCard
+                        name={project.name}
+                        description={project.description}
+                        ownerEmail={projectOwner?.email || t("unknownUser")}
+                        projectId={projectOwner?.id}
+                      />
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card
+                variant="transparent"
+                className="border border-dashed border-default-300"
+              >
+                <Card.Content className="flex flex-col items-center text-center py-14 gap-3">
+                  <Rocket className="size-8 text-default-400" />
+                  <p className="text-default-500">{t("emptyProjects")}</p>
+                </Card.Content>
+              </Card>
+            )}
+          </section>
+        </div>
+      )}
+    </main>
+  );
+}
+</file>
+
+<file path="app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "@/app/globals.css";
+import { Providers } from "./providers/providers";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "dev-tracker",
+  description:
+    "aplicación web de gestión de tareas técnicas, base de datos, API REST e interfaz reactiva.",
+};
+
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const locale = await getLocale();
+
+  return (
+    <html lang={locale} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <NextIntlClientProvider>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "dev-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/react": "^0.5.0",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@heroui/react": "^3.1.0",
+    "@heroui/styles": "^3.1.0",
+    "@hookform/resolvers": "^5.4.0",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "next": "16.2.9",
+    "next-intl": "^4.14.9",
+    "next-themes": "^0.4.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.78.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@gravity-ui/icons": "^2.18.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+</file>
+
+</files>

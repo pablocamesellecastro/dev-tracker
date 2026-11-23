@@ -1,40 +1,31 @@
-import { Avatar, Badge, Button, Card, Chip, Popover } from "@heroui/react";
+import { Button, Card, Chip } from "@heroui/react";
 import {
   ArrowRight,
-  Bell,
   FolderOpen,
-  Folders,
   LayoutColumns,
-  PersonPlus,
-  Persons,
-  Plus,
   Rocket,
 } from "@gravity-ui/icons";
 import Link from "next/link";
-import ProjectCard from "@/components/projectCard/projectCard";
-import InvitationCard from "@/components/invitation/invitationCard";
+import ProjectCard from "@/components/projects/ProjectCard";
 import { createClient } from "@/lib/supabase/server";
-import { Project } from "@/types/project";
-import LogoutButton from "@/components/LogoutButton";
-import { MemberRow } from "@/types/project";
-import CreateProjectModal from "@/components/Modals/CreateProjectModal";
-import InviteModal from "@/components/Modals/InviteModal";
+import { Project, MemberRow } from "@/types/project";
+import CreateProjectModal from "@/components/projects/CreateProjectModal";
+import { getTranslations } from "next-intl/server";
 
 export default async function Home() {
   const supabase = await createClient();
+  const t = await getTranslations("HomePage");
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  ///________________________________________________________________________
 
   const { data: ownedProjects, error: projectsError } = await supabase
     .from("projects")
     .select("id, name, description, owner_id")
     .eq("owner_id", user?.id);
 
-  const { data: memberRows, error: memberError } = await supabase
+  const { data: memberRows } = await supabase
     .from("project_members")
     .select("projects(id, name, description, owner_id)")
     .eq("user_id", user?.id)
@@ -49,8 +40,6 @@ export default async function Home() {
 
   const projects = Array.from(allProjectsMap.values());
 
-  ///________________________________________________________________________
-
   if (projectsError) {
     console.log("Error al traer proyectos:", projectsError.message);
   }
@@ -63,16 +52,6 @@ export default async function Home() {
     console.log("Error al traer perfiles:", profilesError.message);
   }
 
-  const { data: invitations, error: invitationsError } = await supabase
-    .from("friendships")
-    .select("id, sender_id, status")
-    .eq("receiver_id", user?.id)
-    .eq("status", "pending");
-
-  if (invitationsError) {
-    console.log("Error al traer invitaciones:", invitationsError.message);
-  }
-
   return (
     <main className="min-h-screen bg-content1/40">
       {!user ? (
@@ -82,29 +61,28 @@ export default async function Home() {
           </div>
 
           <h1 className="text-4xl font-bold tracking-tight mb-4">
-            Organiza tus proyectos sin perder el hilo
+            {t("heroTitle")}
           </h1>
           <p className="text-default-500 text-lg mb-8 max-w-md">
-            Tableros, tareas y equipo en un solo sitio. Invita a tus compañeros
-            y avanza junto a ellos.
+            {t("heroSubtitle")}
           </p>
 
           <Link href="/login">
             <Button variant="primary" size="lg">
-              Iniciar sesión
+              {t("login")}
               <ArrowRight className="size-4" />
             </Button>
           </Link>
 
           <div className="flex flex-wrap justify-center gap-2 mt-10">
             <Chip variant="soft" color="accent">
-              Tableros Kanban
+              {t("chipKanban")}
             </Chip>
             <Chip variant="soft" color="accent">
-              Invita a tu equipo
+              {t("chipInvite")}
             </Chip>
             <Chip variant="soft" color="accent">
-              Todo en un solo lugar
+              {t("chipAllInOne")}
             </Chip>
           </div>
         </div>
@@ -114,12 +92,12 @@ export default async function Home() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <FolderOpen className="size-5 text-default-500" />
-                Tus proyectos
+                {t("yourProjects")}
               </h2>
               <CreateProjectModal />
             </div>
 
-            {projects && projects.length > 0 ? (
+            {projects.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {projects.map((project: Project) => {
                   const projectOwner = profiles?.find(
@@ -131,9 +109,7 @@ export default async function Home() {
                       <ProjectCard
                         name={project.name}
                         description={project.description}
-                        ownerEmail={
-                          projectOwner?.email || "Usuario desconocido"
-                        }
+                        ownerEmail={projectOwner?.email || t("unknownUser")}
                         projectId={projectOwner?.id}
                       />
                     </Link>
@@ -147,9 +123,7 @@ export default async function Home() {
               >
                 <Card.Content className="flex flex-col items-center text-center py-14 gap-3">
                   <Rocket className="size-8 text-default-400" />
-                  <p className="text-default-500">
-                    Aún no tienes proyectos. ¡Crea el primero para empezar!
-                  </p>
+                  <p className="text-default-500">{t("emptyProjects")}</p>
                 </Card.Content>
               </Card>
             )}

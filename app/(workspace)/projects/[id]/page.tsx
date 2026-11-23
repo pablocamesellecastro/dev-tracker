@@ -1,36 +1,35 @@
-import ProjectCard from "@/components/projectCard/projectCard";
 import { supabase } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { Button, PressEvent } from "@heroui/react";
-import { deleteProject } from "@/lib/actions";
-import { projectCreator } from "@/lib/actions";
-import SelectParticipants from "@/components/SelectParticipants";
-import { Selection } from "@heroui/react";
-import CreateTaskForm from "@/components/tasks/CreateTaskForm";
-import { Plus } from "@gravity-ui/icons";
-import { projectMembers } from "@/lib/actions";
-import AddTaskModal from "@/components/Modals/AddTaskModal";
-import AddParticipantModal from "@/components/Modals/AddParticipantModal";
-import AddStateModal from "@/components/Modals/AddStateModal";
+import { getTranslations } from "next-intl/server";
+import { Avatar, Button, Card, Chip } from "@heroui/react";
+import {
+  deleteProject,
+  projectCreator,
+  projectMembers,
+  getTasks,
+  deleteTask,
+  getStates,
+  changeTaskPriority,
+} from "@/lib/actions";
+import AddTaskModal from "@/components/tasks/AddTaskModal";
+import AddParticipantModal from "@/components/projects/AddParticipantModal";
+import AddStateModal from "@/components/projects/AddStateModal";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
-import { getTasks } from "@/lib/actions";
-import { deleteTask } from "@/lib/actions";
-import TaskCard from "@/components/tasks/TaskCard";
 import KanbanColumn from "@/components/kanban/KanbanColumn";
-import { getStates } from "@/lib/actions";
-import { Avatar, Card, Chip } from "@heroui/react";
-import { changeTaskPriority } from "@/lib/actions";
+import TaskCard from "@/components/tasks/TaskCard";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
 export default async function ProjectPage({ params }: PageProps) {
+  const t = await getTranslations("ProjectPage");
+
   const resolvedParams = await params;
   const projectId = resolvedParams.id;
 
-  console.log("parte del servidor");
+  const supabase = await createClient();
 
   const { data: project, error } = await supabase
     .from("projects")
@@ -38,8 +37,8 @@ export default async function ProjectPage({ params }: PageProps) {
     .eq("id", projectId)
     .single();
 
-  if (error) {
-    console.log(error.message);
+  if (error || !project) {
+    notFound();
   }
 
   const handleDelete = async () => {
@@ -50,14 +49,17 @@ export default async function ProjectPage({ params }: PageProps) {
   const tasks = await getTasks(projectId);
   const states = await getStates(projectId);
 
-  console.log("tareas", tasks?.length);
-
   const projectCreatorEmail = await projectCreator(projectId);
   const projectMembersEmails = await projectMembers(projectId);
 
   const handleDeleteTask = async (taskId: string) => {
     "use server";
     await deleteTask(taskId, projectId);
+  };
+
+  const handleChangePriority = async (taskId: string, priority: string) => {
+    "use server";
+    await changeTaskPriority(taskId, priority, projectId);
   };
 
   const participants = [
@@ -67,14 +69,10 @@ export default async function ProjectPage({ params }: PageProps) {
       .map((email: string) => ({ email, isAdmin: false })),
   ];
 
-  const handleChangePriority = async (taskId: string, priority: string) => {
-    "use server";
-    await changeTaskPriority(taskId, priority, projectId);
-  };
-
   return (
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-center font-bold">{project.name.toUpperCase()}</h1>
+
       <Card className="flex items-center bg-transparent">
         <Card.Content className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center [&>*]:w-full sm:[&>*]:w-auto">
           <AddTaskModal projectId={projectId} />
@@ -85,7 +83,7 @@ export default async function ProjectPage({ params }: PageProps) {
 
       <KanbanBoard projectId={projectId}>
         <div className="flex flex-col gap-6">
-          <div className="">
+          <div>
             <KanbanColumn id="nostate" name="" layout="row" className="w-full">
               {tasks
                 ?.filter((task) => !task.status_id)
@@ -94,6 +92,7 @@ export default async function ProjectPage({ params }: PageProps) {
                     key={task.id}
                     id={task.id}
                     name={task.name}
+                    description={task.description}
                     onDelete={handleDeleteTask.bind(null, task.id)}
                     priority={task.priority}
                     onChangePriority={handleChangePriority.bind(null, task.id)}
@@ -118,6 +117,7 @@ export default async function ProjectPage({ params }: PageProps) {
                       key={task.id}
                       id={task.id}
                       name={task.name}
+                      description={task.description}
                       onDelete={handleDeleteTask.bind(null, task.id)}
                       priority={task.priority}
                       onChangePriority={handleChangePriority.bind(
@@ -131,10 +131,11 @@ export default async function ProjectPage({ params }: PageProps) {
           </div>
         </div>
       </KanbanBoard>
+
       <Card>
         <Card.Header className="flex flex-row items-start justify-between gap-4">
           <div>
-            <Card.Description>Participants</Card.Description>
+            <Card.Description>{t("participants")}</Card.Description>
           </div>
         </Card.Header>
         <Card.Content>
@@ -149,7 +150,7 @@ export default async function ProjectPage({ params }: PageProps) {
 
                 {isAdmin && (
                   <Chip size="sm" color="accent" variant="soft">
-                    admin
+                    {t("admin")}
                   </Chip>
                 )}
               </li>
@@ -157,9 +158,10 @@ export default async function ProjectPage({ params }: PageProps) {
           </ul>
         </Card.Content>
       </Card>
+
       <form action={handleDelete}>
-        <Button variant="ghost" type="submit" className="">
-          Delete project
+        <Button variant="ghost" type="submit">
+          {t("deleteProject")}
         </Button>
       </form>
     </div>

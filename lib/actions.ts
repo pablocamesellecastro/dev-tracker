@@ -97,10 +97,15 @@ export const deleteProject = async (projectId: string) => {
   if (deleteProjectError) {
     console.log(deleteProjectError.message);
     console.log("ha habido un problema al eliminar el proyecto");
+    console.error(
+      "DETALLE COMPLETO DEL ERROR:",
+      JSON.stringify(deleteProjectError, null, 2),
+    );
+    return { success: false, error: deleteProjectError.message };
   }
 
+  revalidatePath("/");
   redirect("/");
-  return { success: true };
 };
 
 ///____________________________________________________________________________________________________________

@@ -2,6 +2,7 @@
 
 import { Card, Button } from "@heroui/react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase/client";
 
 interface InvitationCardProps {
@@ -15,6 +16,8 @@ export default function InvitationCard({
   userSenderEmail,
   description,
 }: InvitationCardProps) {
+  const t = useTranslations("InvitationCard");
+
   const [isVisible, setIsVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -71,7 +74,7 @@ export default function InvitationCard({
             isPending={isLoading}
             onPress={handleAccept}
           >
-            Aceptar
+            {t("accept")}
           </Button>
           <Button
             variant="danger"
@@ -79,7 +82,7 @@ export default function InvitationCard({
             isPending={isLoading}
             onPress={handleDecline}
           >
-            Rechazar
+            {t("decline")}
           </Button>
         </div>
       </Card.Content>

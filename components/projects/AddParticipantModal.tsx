@@ -1,4 +1,5 @@
 "use client";
+
 import { useRouter } from "next/navigation";
 import { ModalFooter, TextArea, useOverlayState } from "@heroui/react";
 import { Button } from "@heroui/react";
@@ -12,32 +13,38 @@ import { Select } from "@heroui/react";
 import { Label } from "@heroui/react";
 import { ListBox } from "@heroui/react";
 import { supabase } from "@/lib/supabase/client";
-import SelectParticipants from "../SelectParticipants";
+import SelectParticipants from "./SelectParticipants";
 import { getCurrentUser } from "@/helpers/currentUser";
 import { addParticipants } from "@/lib/actions";
 import { useEffect } from "react";
-import { ReactFormState } from "react-dom/client";
-import { addState } from "@/lib/actions";
+import { useTranslations } from "next-intl";
 
-interface Props {
+interface AddParticipantModalProps {
   projectId: string;
 }
 
-export default function AddStateModal({ projectId }: Props) {
+export default function AddParticipantModal({
+  projectId,
+}: AddParticipantModalProps) {
+  const t = useTranslations("AddParticipantModal");
+  const tCommon = useTranslations("Common");
   const state = useOverlayState();
-  const router = useRouter();
-  const [stateName, setStateName] = useState("");
+  const [taskName, setTaskName] = useState("");
+  const [taskPriority, setTaskPriority] = useState<string>("");
+  const [selected, setSelected] = useState<Selection>(new Set([]));
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
-  const handleAddState = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      await addState(projectId, stateName);
-      state.close();
-      router.refresh();
-    } catch (error) {
-      console.error(error);
+  useEffect(() => {
+    async function cargarCurrentUserId() {
+      const { currentUserId } = await getCurrentUser();
+      setCurrentUserId(currentUserId);
     }
+    cargarCurrentUserId();
+  }, []);
+
+  const handleAddParticipants = async () => {
+    const ids = selected === "all" ? [] : (Array.from(selected) as string[]);
+    addParticipants(projectId, ids);
   };
 
   return (
@@ -53,8 +60,10 @@ export default function AddStateModal({ projectId }: Props) {
             "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
         }}
       >
-        <Plus></Plus>Add State
+        <Plus></Plus>
+        {t("button")}
       </Button>
+
       <Modal.Backdrop
         className="backdrop-blur-sm"
         isOpen={state.isOpen}
@@ -63,29 +72,26 @@ export default function AddStateModal({ projectId }: Props) {
         <Modal.Container>
           <Modal.Dialog>
             <Modal.CloseTrigger />
-            <Modal.Header>Add state</Modal.Header>
+            <Modal.Header>{t("title")}</Modal.Header>
             <Modal.Body>
               <Modal.Heading className="">
-                <form id="add-task-form" onSubmit={handleAddState}>
-                  <div className="pt-3 pb-3">
-                    <Input
-                      className="w-full"
-                      aria-label="Add state name"
-                      placeholder="State name"
-                      required
-                      value={stateName}
-                      onChange={(e) => setStateName(e.target.value)}
-                    />
-                  </div>
-                </form>
+                <SelectParticipants
+                  selected={selected}
+                  setSelected={setSelected}
+                ></SelectParticipants>
               </Modal.Heading>
             </Modal.Body>
             <ModalFooter>
               <Button slot="close" variant="secondary">
-                Cancel
+                {tCommon("cancel")}
               </Button>
-              <Button type="submit" form="add-task-form" variant="primary">
-                Add State
+              <Button
+                type="submit"
+                form="add-task-form"
+                variant="primary"
+                onPress={handleAddParticipants}
+              >
+                {t("submit")}
               </Button>
             </ModalFooter>
           </Modal.Dialog>
