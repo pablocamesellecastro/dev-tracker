@@ -34,8 +34,8 @@ export default function Friendships() {
 
     if (data) {
       const { error: insertError } = await supabase.from("friendships").insert({
-        senderId: currentUser?.id,
-        receiverId: data.id,
+        sender_id: currentUser?.id,
+        receiver_id: data.id,
         status: "pending",
       });
 

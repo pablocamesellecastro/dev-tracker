@@ -51,7 +51,7 @@ export default function InviteModal() {
     }
 
     const { error: insertError } = await supabase.from("friendships").insert({
-      senderId: currentUser?.id,
+      sender_id: currentUser?.id,
       receiverId: data.id,
       status: "pending",
     });

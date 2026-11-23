@@ -30,7 +30,7 @@ export default async function DashboardLayout({
 
   const { data: invitations } = await supabase
     .from("Friendships")
-    .select("id, senderId, status")
+    .select("id, sender_id, status")
     .eq("receiverId", user?.id)
     .eq("status", "pending");
 
@@ -92,7 +92,7 @@ export default async function DashboardLayout({
                         {hasInvitations ? (
                           invitations!.map((invitation) => {
                             const sender = profiles?.find(
-                              (p) => p.id === invitation.senderId,
+                              (p) => p.id === invitation.sender_id,
                             );
 
                             return (
