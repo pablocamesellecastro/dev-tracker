@@ -40,11 +40,11 @@ export default function Friendships() {
       });
 
       if (insertError) {
-        console.log("Error al crear invitación:", insertError.message);
+        console.error("Error al crear invitación:", insertError.message);
         setErrorMessage(t("errors.inviteFailed"));
       }
     } else {
-      console.log(error);
+      console.error(error);
       setErrorMessage(t("errors.userNotFound"));
     }
 

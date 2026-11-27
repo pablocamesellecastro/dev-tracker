@@ -5,6 +5,7 @@ import { Person, TrashBin } from "@gravity-ui/icons";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useTranslations } from "next-intl";
+import { deleteFriendship } from "@/lib/actions";
 
 type Friend = {
   id: string;
@@ -40,8 +41,6 @@ export default function FriendsModal() {
       .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
 
     if (friendshipsError || !friendships) {
-      console.log(t("loadFailed"));
-
       setErrorMessage(t("loadFailed"));
       setIsLoading(false);
       return;
@@ -75,8 +74,6 @@ export default function FriendsModal() {
       .in("id", friendIds);
 
     if (profilesError) {
-      console.log("Error getting profiles:", profilesError.message);
-
       setErrorMessage(t("loadFailed"));
       setIsLoading(false);
       return;
@@ -112,22 +109,15 @@ export default function FriendsModal() {
     setErrorMessage("");
     setIsLoading(true);
 
-    const { error: deleteFriendshipError } = await supabase
-      .from("Friendships")
-      .delete()
-      .eq("id", friendshipId);
+    const result = await deleteFriendship(friendshipId);
 
-    if (deleteFriendshipError) {
-      console.log(t("deleteFailed"));
-
-      setErrorMessage(t("deleteFailed"));
+    if (!result.success) {
+      setErrorMessage(t("errors.deleteFailed"));
       setIsLoading(false);
       return;
     }
 
-    await handleSearchFriends();
-
-    setIsLoading(false);
+    await handleSearchFriends(); // recarga la lista del modal
   };
 
   return (
@@ -136,13 +126,11 @@ export default function FriendsModal() {
         size="sm"
         variant="ghost"
         onPress={state.open}
-        style={{
-          boxShadow:
-            "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
-        }}
+        aria-label={t("button")}
+        className="text-default-500 hover:text-foreground"
       >
         <Person className="size-4" />
-        {t("button")}
+        <span className="hidden lg:inline">{t("button")}</span>
       </Button>
 
       <Modal.Backdrop

@@ -52,14 +52,13 @@ export default function InviteModal() {
 
     const { error: insertError } = await supabase.from("friendships").insert({
       sender_id: currentUser?.id,
-      receiverId: data.id,
+      receiver_id: data.id,
       status: "pending",
     });
 
     setIsLoading(false);
 
     if (insertError) {
-      console.log("Error al crear invitación:", insertError.message);
       setErrorMessage(t("errors.inviteFailed"));
       return;
     }
@@ -72,16 +71,14 @@ export default function InviteModal() {
     <div className="">
       <Modal>
         <Button
-          variant="ghost"
           size="sm"
+          variant="ghost"
           onPress={state.open}
-          style={{
-            boxShadow:
-              "rgba(0, 0, 0, 0.02) 0px 1px 6px, rgba(0, 0, 0, 0.02) 0px 3px 12px, rgba(0, 0, 0, 0.01) 0px 8px 24px, rgba(0, 0, 0, 0.02) 0px 18px 40px, rgba(0, 0, 0, 0.02) 0px 40px 80px",
-          }}
+          aria-label={t("button")}
+          className="text-default-500 hover:text-foreground"
         >
           <PersonPlus className="size-4" />
-          {t("button")}
+          <span className="hidden lg:inline">{t("button")}</span>
         </Button>
 
         <Modal.Backdrop

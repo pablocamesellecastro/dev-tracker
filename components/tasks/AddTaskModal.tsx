@@ -48,7 +48,7 @@ export default function AddTaskModal({ projectId }: AddTaskModalProps) {
       .select("id");
 
     if (addTaskError) {
-      console.log(addTaskError.message);
+      console.error(addTaskError.message);
     } else {
       setIsLoading(false);
       state.close();

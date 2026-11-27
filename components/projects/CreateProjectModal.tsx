@@ -29,18 +29,12 @@ export default function CreateProjectModal() {
   const [isLoading, setIsLoading] = useState(false);
   const [selected, setSelected] = useState<Selection>(new Set([]));
 
-  console.log(selected);
-
   const handleCreateProject = async () => {
     setIsLoading(true);
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) {
-        console.log("Usuario no logueado");
-        return;
-      }
 
       ///________________________________________________________________________
       ///consulta crear proyecto

@@ -62,9 +62,11 @@ export default async function ProjectPage({ params }: PageProps) {
     await changeTaskPriority(taskId, priority, projectId);
   };
 
+  const membersResult = await projectMembers(projectId);
+
   const participants = [
     { email: projectCreatorEmail, isAdmin: true },
-    ...(projectMembersEmails ?? [])
+    ...(membersResult?.emails ?? [])
       .filter((email: string) => email !== projectCreatorEmail)
       .map((email: string) => ({ email, isAdmin: false })),
   ];

@@ -33,6 +33,8 @@ export default function AddParticipantModal({
   const [taskPriority, setTaskPriority] = useState<string>("");
   const [selected, setSelected] = useState<Selection>(new Set([]));
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function cargarCurrentUserId() {
@@ -43,8 +45,36 @@ export default function AddParticipantModal({
   }, []);
 
   const handleAddParticipants = async () => {
-    const ids = selected === "all" ? [] : (Array.from(selected) as string[]);
-    addParticipants(projectId, ids);
+    ///conseguir ids seleccionados
+    let ids: string[] = [];
+
+    if (selected !== "all") {
+      ids = Array.from(selected) as string[];
+    }
+
+    ///si no hay seleccion, error
+    if (ids.length === 0) {
+      setErrorMessage("Selecciona al menos un participante.");
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+
+    /// await para esperar respuesta de servidor
+    const result = await addParticipants(projectId, ids);
+
+    setLoading(false);
+
+    /// si el servidor devuelve error lo mostramos en el cliente
+    if (!result.success) {
+      setErrorMessage(result.error ?? "Ha ocurrido un error inesperado.");
+      return;
+    }
+
+    /// si todo salio bien limpiar seleccion y cerrar el modal
+    setSelected(new Set([]));
+    state.close();
   };
 
   return (

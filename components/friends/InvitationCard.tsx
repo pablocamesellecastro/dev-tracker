@@ -4,6 +4,8 @@ import { Card, Button } from "@heroui/react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { refresh } from "next/cache";
 
 interface InvitationCardProps {
   invitationId: string;
@@ -20,41 +22,38 @@ export default function InvitationCard({
 
   const [isVisible, setIsVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleAccept = async () => {
     setIsLoading(true);
 
     const { error } = await supabase
-      .from("Friendships")
+      .from("friendships")
       .update({ status: "accepted" })
       .eq("id", invitationId);
 
-    if (error) {
-      console.log("Error al aceptar invitación:", error.message);
-    } else {
-      console.log("Invitación aceptada con éxito");
+    if (!error) {
       setIsVisible(false);
     }
 
     setIsLoading(false);
+    router.refresh();
   };
 
   const handleDecline = async () => {
     setIsLoading(true);
 
     const { error } = await supabase
-      .from("Friendships")
+      .from("friendships")
       .update({ status: "rejected" })
       .eq("id", invitationId);
 
-    if (error) {
-      console.log("Error al rechazar invitación:", error.message);
-    } else {
-      console.log("Invitación rechazada");
+    if (!error) {
       setIsVisible(false);
     }
 
     setIsLoading(false);
+    router.refresh();
   };
 
   if (!isVisible) return null;

@@ -24,10 +24,10 @@ export const useAuth = () => {
     if (error) {
       setErrorMsg(error.message);
       setLoading(false);
-      return console.log("usuario no existe");
+      return console.error("usuario no existe");
     } else {
       router.push("/");
-      return console.log("usuario logueado:", data.user.email);
+      return console.error("usuario logueado:", data.user.email);
     }
   };
 

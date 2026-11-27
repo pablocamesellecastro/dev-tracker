@@ -8,6 +8,9 @@ import { id } from "zod/locales";
 import { ProjectMemberRow } from "@/types/projectMember";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { getCurrentUser } from "@/helpers/currentUser";
+import { User } from "@/types/user";
+import { Friendship } from "@/types/friendship";
 
 ///____________________________________________________________________________________________________________
 export const createProject = async (
@@ -51,7 +54,7 @@ export const createProject = async (
   }
 
   if (participantIds.length === 0) {
-    console.log("Proyecto creado correctamente (sin participantes)");
+    console.error("Proyecto creado correctamente (sin participantes)");
     return data;
   }
 
@@ -70,14 +73,59 @@ export const createProject = async (
     console.error("Error adding members:", rowsError.message);
   }
 
-  console.log("Proyecto creado correctamente con sus participantes");
+  console.error("Proyecto creado correctamente con sus participantes");
 
   return data;
 };
 
 ///____________________________________________________________________________________________________________
+export async function getFriendships() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { friendships: [] };
+
+  const { data, error } = await supabase
+    .from("friendships")
+    .select(
+      `
+      id,
+      status,
+      sender:profiles!sender_id(id, email),
+      receiver:profiles!receiver_id(id, email)
+    `,
+    )
+    .eq("status", "accepted")
+    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
+  if (error) {
+    console.error("getFriendships falló:", error.message);
+    return { friendships: [] };
+  }
+
+  const rows = data as unknown as Friendship[];
+
+  const friendshipsList: User[] = rows.map((row) => {
+    const isSender = row.sender.id === user.id;
+    const friendData = isSender ? row.receiver : row.sender;
+
+    return {
+      id: friendData.id,
+      email: friendData.email,
+      initial: friendData.email.charAt(0).toUpperCase(),
+      name: friendData.email,
+    };
+  });
+
+  return { friendships: friendshipsList };
+}
+
+///____________________________________________________________________________________________________________
 export const deleteProject = async (projectId: string) => {
-  console.log("Intentando eliminar proyecto:", projectId);
+  console.error("Intentando eliminar proyecto:", projectId);
 
   const supabaseServer = await createClient();
 
@@ -95,8 +143,8 @@ export const deleteProject = async (projectId: string) => {
     await supabaseServer.from("projects").delete().eq("id", projectId);
 
   if (deleteProjectError) {
-    console.log(deleteProjectError.message);
-    console.log("ha habido un problema al eliminar el proyecto");
+    console.error(deleteProjectError.message);
+    console.error("ha habido un problema al eliminar el proyecto");
     console.error(
       "DETALLE COMPLETO DEL ERROR:",
       JSON.stringify(deleteProjectError, null, 2),
@@ -110,6 +158,7 @@ export const deleteProject = async (projectId: string) => {
 
 ///____________________________________________________________________________________________________________
 export const projectCreator = async (projectId: string) => {
+  const supabase = await createClient();
   const { data: projectCreatorId, error: projectCreatorIdError } =
     await supabase
       .from("projects")
@@ -118,10 +167,10 @@ export const projectCreator = async (projectId: string) => {
       .single();
 
   if (projectCreatorIdError) {
-    console.log("ha habido un problema");
-    console.log(projectCreatorIdError);
+    console.error("ha habido un problema");
+    console.error(projectCreatorIdError);
   } else {
-    console.log("id del creador extraido con exito");
+    console.error("id del creador extraido con exito");
   }
 
   const { data: projectCreatorEmail, error: projectCreatorEmailError } =
@@ -132,9 +181,9 @@ export const projectCreator = async (projectId: string) => {
       .single();
 
   if (projectCreatorEmailError) {
-    console.log(projectCreatorEmailError);
+    console.error(projectCreatorEmailError);
   } else {
-    console.log("email del creador extraido con exito");
+    console.error("email del creador extraido con exito");
     return projectCreatorEmail.email;
   }
 };
@@ -151,16 +200,17 @@ export const projectMembers = async (projectId: string) => {
   const emails = membersData?.map((member) => member.profiles?.email);
 
   if (membersError) {
-    console.log(membersError.message);
+    console.error(membersError.message);
   } else {
-    console.log("datos de los participantes extraidos. con exito");
-    return emails;
+    console.error("datos de los participantes extraidos. con exito");
+    return { emails, membersData, membersError };
   }
 };
 
 ///____________________________________________________________________________________________________________
 export const addParticipants = async (projectId: string, userIds: string[]) => {
   const supabase = await createClient();
+
   const rows = userIds.map((userId) => ({
     user_id: userId,
     project_id: projectId,
@@ -170,18 +220,23 @@ export const addParticipants = async (projectId: string, userIds: string[]) => {
     await supabase.from("project_members").insert(rows);
 
   if (addParticipantsError) {
-    console.log("error en los particpantes");
-    console.log(addParticipantsError.message);
-  } else {
-    console.log("participante/s nuevo/s añadido/s con exito");
+    console.error("Error de Supabase:", addParticipantsError.message);
+
+    if (addParticipantsError.code === "23505") {
+      return {
+        success: false,
+        error: "Alguno de esos usuarios ya es miembro del proyecto.",
+      };
+    }
+
+    return {
+      success: false,
+      error: "No se pudieron añadir los participantes. Inténtalo de nuevo.",
+    };
   }
 
-  if (addParticipantsError) {
-    if (addParticipantsError.code === "23505") {
-      throw new Error("Alguno de esos usuarios ya es miembro del proyecto");
-    }
-    throw addParticipantsError;
-  }
+  revalidatePath(`/projects/${projectId}`);
+  return { success: true };
 };
 
 ///____________________________________________________________________________________________________________
@@ -281,4 +336,36 @@ export const changeTaskPriority = async (
 export const setLocale = async (locale: "es" | "en") => {
   const store = await cookies();
   store.set("locale", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+};
+
+///____________________________________________________________________________________________________________
+export const deleteFriendship = async (friendship_id: string) => {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("friendships")
+    .delete()
+    .eq("id", friendship_id);
+
+  if (error) {
+    console.error(error.message);
+    return { success: false };
+  }
+  return { success: true };
+};
+
+///____________________________________________________________________________________________________________
+export const pruebaGetUsuarios = async () => {
+  const supabase = await createClient();
+
+  const { data: usuariosData, error: usuariosError } = await supabase
+    .from("profiles")
+    .select("*");
+
+  if (usuariosError) {
+    console.error(usuariosError.message);
+    return { usuariosError };
+  }
+
+  return { usuariosData };
 };

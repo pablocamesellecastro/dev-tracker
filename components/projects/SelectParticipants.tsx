@@ -8,6 +8,8 @@ import { getCurrentUser } from "@/helpers/currentUser";
 import { User } from "@/types/user";
 import { Check } from "@gravity-ui/icons";
 import type { Selection } from "@heroui/react";
+import { getFriendships, projectMembers } from "@/lib/actions";
+import { useParams } from "next/navigation";
 
 interface SelectParticipantsProps {
   selected: Selection;
@@ -19,13 +21,24 @@ export default function SelectParticipants({
   setSelected,
 }: SelectParticipantsProps) {
   ///_____________________________________________________
-  const [data, setData] = useState<User[]>([]);
+  const [friends, setFriends] = useState<User[]>([]);
+  const params = useParams();
+  const project_id = params.id as string;
 
   useEffect(() => {
     const fetchData = async () => {
-      const result = await Friendships();
+      const friendshipsResult = await getFriendships();
+      const membersResult = await projectMembers(project_id);
 
-      setData(result.friendships);
+      const memberIdsInProject = new Set(
+        membersResult?.membersData.map((member) => member.user_id),
+      );
+
+      const friendsNotInProject = friendshipsResult.friendships.filter(
+        (friend) => !memberIdsInProject.has(friend.id),
+      );
+
+      setFriends(friendsNotInProject);
     };
 
     fetchData();
@@ -40,22 +53,18 @@ export default function SelectParticipants({
           selectionMode="multiple"
           onSelectionChange={setSelected}
         >
-          {data.map((friend) => (
+          {friends.map((friend) => (
             <ListBox.Item
               key={friend.id}
               textValue={friend.name}
               id={friend.id}
             >
               <Avatar size="sm">
-                <Avatar.Image
-                  alt="Bob"
-                  src="https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/blue.jpg"
-                />
+                <Avatar.Image src="https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/blue.jpg" />
                 <Avatar.Fallback>{friend.initial}</Avatar.Fallback>
               </Avatar>
               <div className="flex flex-col">
                 <Label>{friend.email}</Label>
-                <Description>{friend.email}</Description>
               </div>
               <ListBox.ItemIndicator>
                 {({ isSelected }) =>

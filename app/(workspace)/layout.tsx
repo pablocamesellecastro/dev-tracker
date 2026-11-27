@@ -29,7 +29,7 @@ export default async function DashboardLayout({
     .select("id, email");
 
   const { data: invitations } = await supabase
-    .from("Friendships")
+    .from("friendships")
     .select("id, sender_id, status")
     .eq("receiverId", user?.id)
     .eq("status", "pending");
